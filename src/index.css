@@ -250,3 +250,7 @@ button:focus-visible {
 }
 button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { cursor: not-allowed; }
+
+.enco-shell-header .bg-blue-600,
+.enco-shell-header .bg-blue-500 { color: #ffffff !important; }
+.enco-shell-header .text-blue-300 { color: var(--enco-blue) !important; }
