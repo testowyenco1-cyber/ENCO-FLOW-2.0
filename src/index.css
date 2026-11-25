@@ -187,3 +187,23 @@ body {
     widows: 2 !important;
   }
 }
+
+
+/* Jasna kolorystyka aplikacji — bez zmian w układzie i zachowaniu komponentów. */
+.bg-slate-950 { background-color: #f3f6fa !important; }
+.bg-slate-900 { background-color: #ffffff !important; }
+.bg-slate-800 { background-color: #f1f5f9 !important; }
+.bg-slate-700 { background-color: #e2e8f0 !important; }
+.bg-slate-800\/70 { background-color: rgb(241 245 249 / 0.9) !important; }
+
+.border-slate-800,
+.border-slate-700 { border-color: #dbe3ed !important; }
+
+.text-slate-100 { color: #1e293b !important; }
+.text-slate-200 { color: #334155 !important; }
+.text-slate-300 { color: #475569 !important; }
+.text-slate-400 { color: #64748b !important; }
+.text-slate-500 { color: #64748b !important; }
+
+header.bg-slate-900.text-white { color: #172b4d; }
+header nav.bg-slate-900 { color: #172b4d; }
