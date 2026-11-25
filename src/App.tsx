@@ -673,7 +673,7 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
       />
 
       {/* Main Viewport */}
-      <main className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 transition-[padding] duration-200 ${sidebarOpen ? 'lg:pl-[clamp(236px,calc(16vw+16px),296px)]' : ''} ${
+      <main className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 transition-[padding] duration-200 ${sidebarOpen ? 'lg:pl-[276px]' : 'lg:pl-[88px]'} ${
         selectedOrder ? (orderTasksPanelOpen ? 'max-w-full lg:pr-[363px]' : 'max-w-full lg:pr-3') : activeModule === 'doors' ? 'max-w-full 2xl:max-w-[1800px]' : 'max-w-[1800px]'
       }`}>
         {activeModule === 'dashboard' ? (
@@ -787,7 +787,7 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
       </main>
 
       {/* Quiet Corporate Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 py-6 text-slate-400 text-xs">
+      <footer className={`bg-slate-900 border-t border-slate-800 py-6 text-slate-400 text-xs transition-[margin] duration-200 ${sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[72px]'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-200">ENCO FLOW</span>
