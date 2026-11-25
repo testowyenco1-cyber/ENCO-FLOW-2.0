@@ -184,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <nav id="enco-navigation-menu" aria-label="Nawigacja ENCO Flow"
-        className={`enco-sidebar fixed top-16 bottom-0 left-0 z-40 hidden lg:block overflow-y-auto border-r p-2.5 space-y-5 ${sidebarOpen ? 'w-[260px]' : 'w-[72px]'}`}>
+        className={`enco-sidebar fixed top-16 bottom-0 left-0 z-40 overflow-y-auto border-r p-2.5 space-y-5 ${sidebarOpen ? 'block w-[260px] shadow-2xl' : 'hidden lg:block lg:w-[72px]'}`}>
             <div>
               <p className={`mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${sidebarOpen ? '' : 'sr-only'}`}>Moduły</p>
               <div className="space-y-1">
@@ -216,7 +216,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-xl shrink-0" aria-hidden="true">{currentProfile.avatar}</span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aktywne konto użytkownika</p>
-                  <p className="mt-0.5 text-sm font-bold text-white break-words leading-snug">{currentProfile.name}</p>
+                  <p className="mt-0.5 text-sm font-bold text-slate-900 break-words leading-snug">{currentProfile.name}</p>
                   <p className="mt-1 text-[11px] leading-snug text-slate-400 break-words">{currentProfile.department}</p>
                 </div>
               </div>
@@ -270,7 +270,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <div className="border-t border-slate-700 pt-3">
               <button type="button" onClick={onOpenArchive}
-                className={`w-full min-w-0 flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${archiveActive ? 'bg-blue-600 text-white font-bold' : 'text-slate-200 hover:bg-slate-800'}`}>
+                className={`w-full min-w-0 flex items-center rounded-xl py-3 text-sm ${sidebarOpen ? 'gap-3 px-3 text-left' : 'justify-center px-2'} ${archiveActive ? 'bg-blue-600 text-white font-bold' : 'text-slate-200 hover:bg-slate-800'}`}>
                 <Archive className="w-4 h-4 shrink-0" />
                 <span className={`min-w-0 flex-1 break-words leading-snug ${sidebarOpen ? '' : 'sr-only'}`}>Archiwum zleceń</span>
                 <span className={`text-xs text-slate-400 ${sidebarOpen ? '' : 'sr-only'}`}>{archiveCount}</span>
