@@ -187,3 +187,66 @@ body {
     widows: 2 !important;
   }
 }
+
+
+/* ENCO Flow 2.0 — odświeżona warstwa wizualna nawigacji i kontrolek.
+   Reguły ograniczone do powłoki aplikacji; nie zmieniają logiki ani formularzy. */
+:root {
+  --enco-navy: #173b67;
+  --enco-blue: #2f6fae;
+  --enco-ink: #172b45;
+  --enco-muted: #64748b;
+  --enco-border: #e2e8f0;
+  --enco-surface: #ffffff;
+  --enco-canvas: #f4f7fb;
+}
+
+.enco-shell-header {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--enco-ink) !important;
+  border-color: var(--enco-border) !important;
+  box-shadow: 0 4px 18px rgba(23, 43, 69, 0.045);
+  backdrop-filter: blur(14px);
+}
+
+.enco-shell-header .text-white { color: var(--enco-ink) !important; }
+.enco-shell-header .text-slate-200 { color: #334155 !important; }
+.enco-shell-header .text-slate-400 { color: var(--enco-muted) !important; }
+.enco-shell-header .border-slate-700,
+.enco-shell-header .border-slate-800 { border-color: var(--enco-border) !important; }
+.enco-shell-header .bg-slate-800 { background: #f1f5f9 !important; }
+.enco-shell-header [class~="hover:bg-slate-800"]:hover { background: #eef3f8 !important; }
+
+.enco-sidebar {
+  box-sizing: border-box;
+  background: var(--enco-surface) !important;
+  border-color: var(--enco-border) !important;
+  box-shadow: 8px 0 28px rgba(23, 43, 69, 0.035);
+  transition: width 200ms ease, box-shadow 200ms ease;
+}
+.enco-sidebar .text-white { color: #ffffff !important; }
+.enco-sidebar .text-slate-200 { color: #334155 !important; }
+.enco-sidebar .text-slate-400 { color: var(--enco-muted) !important; }
+.enco-sidebar .text-slate-500 { color: #64748b !important; }
+.enco-sidebar .border-slate-700,
+.enco-sidebar .border-slate-800 { border-color: var(--enco-border) !important; }
+.enco-sidebar .bg-slate-900 { background: #ffffff !important; }
+.enco-sidebar .bg-slate-800,
+.enco-sidebar .bg-slate-700 { background: #f1f5f9 !important; }
+.enco-sidebar [class~="hover:bg-slate-800"]:hover { background: #eef3f8 !important; }
+.enco-sidebar .bg-blue-600 { background: var(--enco-navy) !important; }
+.enco-sidebar .bg-blue-600\/20 { background: #eaf2fa !important; }
+.enco-sidebar .border-blue-500\/60 { border-color: #b9cee3 !important; }
+.enco-sidebar .text-blue-200 { color: var(--enco-navy) !important; }
+.enco-sidebar .shadow-md { box-shadow: 0 4px 12px rgba(23, 59, 103, 0.12) !important; }
+
+button {
+  border-radius: 10px;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+button:focus-visible {
+  outline: 3px solid rgba(47, 111, 174, 0.32);
+  outline-offset: 2px;
+}
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { cursor: not-allowed; }
