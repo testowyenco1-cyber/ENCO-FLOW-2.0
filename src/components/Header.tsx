@@ -110,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className={`enco-shell-header sticky top-0 z-30 border-b text-slate-900 ${sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[72px]'}`}>
+    <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-white">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-16 flex items-center gap-3 sm:gap-4">
         <button
           type="button"
@@ -183,18 +183,17 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      <nav id="enco-navigation-menu" aria-label="Nawigacja ENCO Flow"
-        className={`enco-sidebar fixed top-16 bottom-0 left-0 z-40 overflow-y-auto border-r p-2.5 space-y-5 ${sidebarOpen ? 'block w-[260px] shadow-2xl' : 'hidden lg:block lg:w-[72px]'}`}>
+      {sidebarOpen && (
+          <nav id="enco-navigation-menu" aria-label="Nawigacja ENCO Flow"
+            className="fixed top-16 bottom-0 left-0 z-40 w-[clamp(220px,16vw,280px)] overflow-y-auto border-r border-slate-700 bg-slate-900 p-3 space-y-5">
             <div>
-              <p className={`mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${sidebarOpen ? '' : 'sr-only'}`}>Moduły</p>
+              <p className="mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">Moduły</p>
               <div className="space-y-1">
                 {modules.map(({ id, label, Icon }) => (
                   <button key={id} type="button" onClick={() => navigateModule(id)}
-                    title={label}
-                    aria-label={label}
-                    className={`w-full min-w-0 flex items-center rounded-xl py-3 text-sm transition-colors ${sidebarOpen ? 'gap-3 px-3 text-left' : 'justify-center px-2'} ${activeModule === id ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-200 hover:bg-slate-800'}`}>
+                    className={`w-full min-w-0 flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors ${activeModule === id ? 'bg-blue-600 text-white font-bold' : 'text-slate-200 hover:bg-slate-800'}`}>
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span className={`min-w-0 flex-1 break-words leading-snug ${sidebarOpen ? '' : 'sr-only'}`}>{label}</span>
+                    <span className="min-w-0 flex-1 break-words leading-snug">{label}</span>
                     {id === 'doors' && doorOrdersCount > 0 && (
                       <span className={`rounded px-1.5 py-0.5 text-xs ${doorOverdueCount > 0 ? 'bg-rose-700 text-white' : 'bg-slate-700 text-slate-200'}`}>{doorOrdersCount}</span>
                     )}
@@ -211,12 +210,12 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {sidebarOpen && <section className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2.5">
+            <section className="rounded-xl border border-slate-700 bg-slate-800/70 p-3 space-y-2.5">
               <div className="flex items-start gap-2.5 min-w-0">
                 <span className="text-xl shrink-0" aria-hidden="true">{currentProfile.avatar}</span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aktywne konto użytkownika</p>
-                  <p className="mt-0.5 text-sm font-bold text-slate-900 break-words leading-snug">{currentProfile.name}</p>
+                  <p className="mt-0.5 text-sm font-bold text-white break-words leading-snug">{currentProfile.name}</p>
                   <p className="mt-1 text-[11px] leading-snug text-slate-400 break-words">{currentProfile.department}</p>
                 </div>
               </div>
@@ -228,9 +227,9 @@ export const Header: React.FC<HeaderProps> = ({
                 <Download className="h-3.5 w-3.5 shrink-0" />
                 <span>{currentProfile.canDownload ? 'Pobieranie: Włączone' : 'Pobieranie: Zablokowane'}</span>
               </div>
-            </section>}
+            </section>
 
-            {sidebarOpen && !archiveActive && activeModule === 'orders' && (
+            {!archiveActive && activeModule === 'orders' && (
               <div>
                 <p className="mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">Filtry zleceń</p>
                 <div className="grid grid-cols-1 gap-2">
@@ -244,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {sidebarOpen && activeModule === 'doors' && doorOverdueCount > 0 && (
+            {activeModule === 'doors' && doorOverdueCount > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-rose-900 bg-rose-950/60 px-3 py-2 text-xs text-rose-300">
                 <AlertTriangle className="h-4 w-4" /> {doorOverdueCount} zamówień drzwi po terminie
               </div>
@@ -256,34 +255,35 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onSaveChanges}
                 disabled={!hasPendingChanges || isSavingChanges}
                 aria-live="polite"
-                className={`relative w-full min-w-0 flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-bold transition-all ${hasPendingChanges ? 'bg-blue-600 text-white shadow-md shadow-blue-950/10 hover:bg-blue-500' : 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed'}`}
+                className={`relative w-full min-w-0 flex items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm font-bold transition-all ${hasPendingChanges ? 'bg-blue-600 text-white shadow-md shadow-blue-950/40 hover:bg-blue-500' : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'}`}
                 title={hasPendingChanges ? 'Zapisz niezapisane zmiany na serwerze' : 'Wszystkie zmiany są zapisane'}
               >
                 {hasPendingChanges && <span className="absolute left-3 h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse ring-2 ring-red-400/20" aria-label="Niezapisane zmiany" />}
                 {isSavingChanges ? <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" /> : hasPendingChanges ? <Save className="h-4 w-4 shrink-0" /> : <CheckCircle2 className="h-4 w-4 shrink-0" />}
-                <span className={sidebarOpen ? '' : 'sr-only'}>{isSavingChanges ? 'Zapisywanie…' : 'Zapisz zmiany'}</span>
+                <span>{isSavingChanges ? 'Zapisywanie…' : 'Zapisz zmiany'}</span>
               </button>
-              <p className={`px-1 text-[11px] leading-snug text-center ${sidebarOpen ? '' : 'sr-only'} ${hasPendingChanges ? 'text-rose-300' : 'text-slate-500'}`}>
+              <p className={`px-1 text-[11px] leading-snug text-center ${hasPendingChanges ? 'text-rose-300' : 'text-slate-500'}`}>
                 {hasPendingChanges ? 'Masz niezapisane zmiany.' : 'Wszystkie zmiany są zapisane.'}
               </p>
             </div>
 
             <div className="border-t border-slate-700 pt-3">
               <button type="button" onClick={onOpenArchive}
-                className={`w-full min-w-0 flex items-center rounded-xl py-3 text-sm ${sidebarOpen ? 'gap-3 px-3 text-left' : 'justify-center px-2'} ${archiveActive ? 'bg-blue-600 text-white font-bold' : 'text-slate-200 hover:bg-slate-800'}`}>
+                className={`w-full min-w-0 flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${archiveActive ? 'bg-blue-600 text-white font-bold' : 'text-slate-200 hover:bg-slate-800'}`}>
                 <Archive className="w-4 h-4 shrink-0" />
-                <span className={`min-w-0 flex-1 break-words leading-snug ${sidebarOpen ? '' : 'sr-only'}`}>Archiwum zleceń</span>
-                <span className={`text-xs text-slate-400 ${sidebarOpen ? '' : 'sr-only'}`}>{archiveCount}</span>
+                <span className="min-w-0 flex-1 break-words leading-snug">Archiwum zleceń</span>
+                <span className="text-xs text-slate-400">{archiveCount}</span>
               </button>
-              <button type="button" title="Bazy danych" aria-label="Bazy danych" onClick={onOpenDatabases} className={`w-full min-w-0 flex items-center rounded-xl py-3 text-left text-sm text-slate-200 hover:bg-slate-800 ${sidebarOpen ? 'gap-3 px-3' : 'justify-center px-2'}`}><Database className="w-4 h-4 shrink-0"/><span className={sidebarOpen ? 'min-w-0 flex-1 break-words leading-snug' : 'sr-only'}>Bazy danych</span></button>
-              <button type="button" title="Odśwież dane z serwera" aria-label="Odśwież dane z serwera" onClick={onRefresh}
-                className={`w-full min-w-0 flex items-center rounded-xl py-3 text-left text-sm text-slate-200 hover:bg-slate-800 ${sidebarOpen ? 'gap-3 px-3' : 'justify-center px-2'}`}>
-                <RefreshCw className="w-4 h-4 shrink-0" />
-                <span className={sidebarOpen ? 'min-w-0 flex-1 break-words leading-snug' : 'sr-only'}>Odśwież dane z serwera</span>
+              <button type="button" onClick={onOpenDatabases} className="w-full min-w-0 flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm text-slate-200 hover:bg-slate-800"><Database className="w-4 h-4 shrink-0"/><span className="min-w-0 flex-1 break-words leading-snug">Bazy danych</span></button>
+              <button type="button" onClick={() => {  onRefresh(); }}
+                className="w-full min-w-0 flex items-start gap-3 rounded-lg px-3 py-3 text-left text-sm text-slate-200 hover:bg-slate-800">
+                <RefreshCw className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="min-w-0 flex-1 break-words leading-snug">Odśwież dane z serwera</span>
               </button>
-              {sidebarOpen && <p className="px-3 text-[11px] text-slate-400">Odświeżenie odrzuci niezapisane zmiany lokalne.</p>}
+              <p className="px-3 text-[11px] text-slate-400">Odświeżenie odrzuci niezapisane zmiany lokalne.</p>
             </div>
-      </nav>
+          </nav>
+      )}
     </header>
   );
 };
