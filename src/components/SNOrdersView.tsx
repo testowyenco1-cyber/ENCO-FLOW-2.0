@@ -319,7 +319,7 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
     {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
     {notice && <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
 
-    <div className={`overflow-hidden rounded-xl border border-slate-200 bg-white ${saving ? 'pointer-events-none opacity-70' : ''}`}>
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
         <div><h2 className="text-sm font-bold text-slate-900">{TYPES.find(type => type.key === selectedType)?.label} · {selectedCategory === 'ALL' ? 'Wszystkie' : CATEGORIES.find(category => category.key === selectedCategory)?.label}</h2><p className="mt-0.5 text-xs text-slate-500">Pozycje: {visibleRecords.length}. Wszystkie zmiany wyślesz przyciskiem „Zapisz zmiany” w lewym panelu.</p></div>
         {canEdit && <button type="button" onClick={addRecord} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"><Plus className="h-3.5 w-3.5" /> Dodaj pozycję</button>}
