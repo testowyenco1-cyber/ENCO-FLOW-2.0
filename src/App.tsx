@@ -567,7 +567,7 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
     const updatedOrder: Order = {
       ...selectedOrder,
       items: updatedItems,
-      departureDate: updatedItem.type === 'DATA_WYJAZDU' ? updatedItem.plannedDate : selectedOrder.departureDate,
+      departureDate: updatedItem.type === 'DATA_WYJAZDU' ? (updatedItem.plannedDate ?? '') : selectedOrder.departureDate,
       status: computedStatus,
       updatedAt: new Date().toISOString(),
     };
