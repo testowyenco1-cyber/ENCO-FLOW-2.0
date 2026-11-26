@@ -140,7 +140,7 @@ export const normalizeDocumentRows = (value: unknown, prefix: string): DocumentR
 export const getSmallElementRows = (
   data: Pick<EnclosureDocumentData, 'drobneElementy' | 'dodatkoweWyposazenie'>,
 ): DocumentRow[] => {
-  const rows = normalizeDocumentRows(data.drobneElementy, 'small-element')
+  const rows: DocumentRow[] = normalizeDocumentRows(data.drobneElementy, 'small-element')
     .map((row) => ({
       ...row,
       category: firstText(row.category, inferSmallElementCategory(row.type)),
