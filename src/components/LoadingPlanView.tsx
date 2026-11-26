@@ -239,9 +239,10 @@ export const LoadingPlanView: React.FC<LoadingPlanViewProps> = ({
       // Tab filter
       if (filterTab === 'all') return true;
 
-      const urgency = getDepartureDateUrgency(order.departureDate);
+      const urgency = getDepartureDateUrgency(order.departureDate, order.status === 'READY');
       if (filterTab === 'next_14_days') {
-        return urgency.isUrgent || urgency.daysRemaining <= 14;
+        return urgency.status === 'overdue' || urgency.status === 'urgent' ||
+          (urgency.status === 'upcoming' && urgency.daysDiff <= 14);
       }
       if (filterTab === 'in_progress') {
         return order.status === 'IN_PROGRESS';
@@ -477,7 +478,7 @@ export const LoadingPlanView: React.FC<LoadingPlanViewProps> = ({
                 </tr>
               ) : (
                 filteredOrders.map((order) => {
-                  const urgency = getDepartureDateUrgency(order.departureDate);
+                  const urgency = getDepartureDateUrgency(order.departureDate, order.status === 'READY');
                   const loadingNote = getLoadingNote(order);
                   const wkladki = getWkladki(order);
                   const snSummary = getSnSummary(order);
@@ -493,7 +494,7 @@ export const LoadingPlanView: React.FC<LoadingPlanViewProps> = ({
                   const powykonItem = getItem(order, 'POWYKONAWCZA');
 
                   // Highlight if urgent
-                  const isUrgent = urgency.isUrgent;
+                  const isUrgent = urgency.status === 'urgent' || urgency.status === 'overdue';
 
                   return (
                     <tr
