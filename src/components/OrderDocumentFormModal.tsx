@@ -107,6 +107,7 @@ type FormData = {
   dostawaWarszawa: Row[];
   uwagi: string;
   customFields: Record<string, any>;
+  __sourceSnapshotApplied?: boolean;
   __templateSnapshot?: DocumentTemplate;
   __templateVersion?: number;
 };
@@ -768,16 +769,20 @@ function rowDefaults(key: string, form: FormData): Row {
 }
 function hydrateFromBindings(form: FormData, template: DocumentTemplate, order: Order, item: OrderItem | undefined, hasSaved: boolean): FormData {
   let next = form;
-  for (const field of template.fields) {
-    if (!field.sourcePath || !field.valueKey || field.type === 'static') continue;
-    const existing = getValueByKey(next, field.valueKey);
-    const source = getPathValue(field.sourcePath, order, item, next);
-    // Dane ze zlecenia są kopiowane przy tworzeniu dokumentu. Po zapisaniu
-    // dokument zachowuje własny snapshot; źródło nie nadpisuje ręcznych poprawek.
-    if (hasSaved && existing !== undefined) continue;
-    if (existing !== undefined && existing !== null && existing !== '' && !(Array.isArray(existing) && existing.length === 0)) continue;
-    if (source !== undefined && source !== null && source !== '') next = setValueByKey(next, field.valueKey, source);
-    else if (!hasSaved && field.defaultValue !== undefined && (existing === undefined || existing === '' || (Array.isArray(existing) && existing.length === 0))) next = setValueByKey(next, field.valueKey, clone(field.defaultValue));
+  const sourceSnapshotApplied = Boolean(form.__sourceSnapshotApplied);
+  if (!sourceSnapshotApplied) {
+    for (const field of template.fields) {
+      if (!field.sourcePath || !field.valueKey || field.type === 'static') continue;
+      const existing = getValueByKey(next, field.valueKey);
+      const source = getPathValue(field.sourcePath, order, item, next);
+      // Pierwsze pobranie uzupełnia tylko puste pola. Zapisany dokument nie jest
+      // później automatycznie synchronizowany ze zleceniem.
+      const isEmpty = existing === undefined || existing === null || existing === '' || (Array.isArray(existing) && existing.length === 0);
+      if (!isEmpty) continue;
+      if (source !== undefined && source !== null && source !== '') next = setValueByKey(next, field.valueKey, source);
+      else if (!hasSaved && field.defaultValue !== undefined) next = setValueByKey(next, field.valueKey, clone(field.defaultValue));
+    }
+    next = { ...next, __sourceSnapshotApplied: true };
   }
   if (!hasSaved) {
     const variant = next.rozmiar && next.typObudowy && next.rozmiar.toUpperCase().startsWith(next.typObudowy.toUpperCase())
@@ -1657,7 +1662,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
         <button type="button" onClick={() => setReview(false)} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold"><ArrowLeft size={15}/> Wróć do edycji</button>
         <div className="flex flex-wrap gap-2"><button type="button" disabled={!canDownload} onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40"><Printer size={15}/> Drukuj / PDF</button>{mode === 'form' ? <button type="button" disabled={!canEdit || !item} onClick={() => {
           if (!canEdit || !item) return;
-          const persistedForm = { ...form, __templateSnapshot: clone(activeTemplate), __templateVersion: activeTemplate.version };
+          const persistedForm = { ...form, __sourceSnapshotApplied: true, __templateSnapshot: clone(activeTemplate), __templateVersion: activeTemplate.version };
           const terminChanged = isFormFieldChanged('terminRealizacji');
           const detailPatch: Record<string, any> = {};
           const detailFieldMap: Array<[string, string]> = [
