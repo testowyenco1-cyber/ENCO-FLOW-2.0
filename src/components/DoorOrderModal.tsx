@@ -760,7 +760,7 @@ export const DoorOrderModal: React.FC<DoorOrderModalProps> = ({
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
-                  <span>{isEditing ? 'Zapisz zmiany' : 'Dodaj zamówienie'}</span>
+                  <span>{isEditing ? 'Zatwierdź' : 'Dodaj zamówienie'}</span>
                 </button>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-500 font-semibold select-none">
