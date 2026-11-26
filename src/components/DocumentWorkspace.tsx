@@ -1,0 +1,140 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, CheckCircle2, Eye, FileText, Printer, RefreshCw, Save } from 'lucide-react';
+import type { Order } from '../types/enco';
+import type { UserRoleProfile } from '../types/userRole';
+import { canEditItemType } from '../types/userRole';
+import { EnclosureDocumentForm } from './documents/EnclosureDocumentForm';
+import { DocumentPreviewEditor } from './documents/DocumentPreviewEditor';
+import {
+  buildEnclosureDocumentHtml,
+  createEnclosureDocumentData,
+  sanitizeDocumentHtml,
+  updateOrderWithEnclosureDocument,
+  type EnclosureDocumentData,
+} from './documents/documentModel';
+
+interface Props {
+  order: Order;
+  onClose: () => void;
+  onSaveOrderChanges: (order: Order) => Promise<boolean> | boolean | void;
+  currentProfile: UserRoleProfile;
+  canDownload: boolean;
+}
+
+export const DocumentWorkspace: React.FC<Props> = ({
+  order, onClose, onSaveOrderChanges, currentProfile, canDownload,
+}) => {
+  const [data, setData] = useState<EnclosureDocumentData>(() => createEnclosureDocumentData(order));
+  const [previewHtml, setPreviewHtml] = useState(() => {
+    const initial = createEnclosureDocumentData(order);
+    return sanitizeDocumentHtml(initial.documentContentHtml || buildEnclosureDocumentHtml(initial, order));
+  });
+  const [previewResetToken, setPreviewResetToken] = useState(0);
+  const [formChanged, setFormChanged] = useState(false);
+  const [previewChanged, setPreviewChanged] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const canEdit = canEditItemType(currentProfile, 'OBUDOWA');
+  const hasEnclosure = order.items.some((item) => item.type === 'OBUDOWA');
+
+  useEffect(() => {
+    const next = createEnclosureDocumentData(order);
+    setData(next);
+    setPreviewHtml(sanitizeDocumentHtml(next.documentContentHtml || buildEnclosureDocumentHtml(next, order)));
+    setPreviewResetToken((value) => value + 1);
+    setFormChanged(false);
+    setPreviewChanged(Boolean(next.documentContentHtml));
+    setMessage('');
+  }, [order.id]);
+
+  const statusText = useMemo(() => {
+    if (!canEdit) return 'Tryb podglądu — profil nie ma uprawnień do edycji obudowy.';
+    if (saving) return 'Zapisywanie lokalnych zmian…';
+    return 'Zmiany zostaną najpierw zatwierdzone lokalnie. Zapis na serwer wykonuje przycisk w lewym panelu.';
+  }, [canEdit, saving]);
+
+  const changeForm = (next: EnclosureDocumentData) => {
+    setData(next);
+    setFormChanged(true);
+  };
+
+  const regeneratePreview = () => {
+    const nextHtml = sanitizeDocumentHtml(buildEnclosureDocumentHtml(data, order));
+    setPreviewHtml(nextHtml);
+    setPreviewResetToken((value) => value + 1);
+    setFormChanged(false);
+    setPreviewChanged(false);
+    setMessage('Podgląd odtworzono z aktualnych pól formularza. Wcześniejsza ręczna edycja podglądu została zastąpiona.');
+  };
+
+  const save = async () => {
+    if (!canEdit || !hasEnclosure || saving) return;
+    setSaving(true);
+    setMessage('');
+    try {
+      const nextData = {
+        ...data,
+        documentContentHtml: sanitizeDocumentHtml(previewHtml),
+        documentContentUpdatedAt: new Date().toISOString(),
+        __sourceSnapshotApplied: true,
+      };
+      const updatedOrder = updateOrderWithEnclosureDocument(order, nextData);
+      const result = await onSaveOrderChanges(updatedOrder);
+      if (result === false) {
+        setMessage('Nie udało się zatwierdzić dokumentu. Dane pozostały w bieżącym widoku.');
+        return;
+      }
+      onClose();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Nie udało się zatwierdzić dokumentu.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-100">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm md:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50" aria-label="Wróć do centrum dokumentów"><ArrowLeft size={17}/></button>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><FileText size={18}/></div>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-bold text-slate-900">Zlecenie obudowy</h1>
+            <p className="truncate text-xs text-slate-500">{order.orderNumber} · {order.projectName || 'Bez nazwy obiektu'}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="hidden max-w-[340px] text-right text-[11px] text-slate-500 xl:block">{statusText}</span>
+          <button type="button" disabled={!canDownload} onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Printer size={14}/> Drukuj / PDF</button>
+          {canEdit && <button type="button" disabled={!formChanged && !previewChanged} onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw size={14}/> Odśwież podgląd</button>}
+          {canEdit && <button type="button" disabled={saving || !hasEnclosure} onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 size={15}/> Zatwierdź dokument</button>}
+        </div>
+      </header>
+
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(360px,440px)_minmax(0,1fr)]">
+        <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-slate-50 p-3 md:p-4 xl:border-b-0 xl:border-r">
+          <div className="mb-3 flex items-center justify-between">
+            <div><h2 className="text-sm font-bold text-slate-800">Formularz dokumentu</h2><p className="mt-0.5 text-[11px] text-slate-500">Wypełnij dane i skonfiguruj listy pozycji.</p></div>
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-500"><Eye size={12} className="mr-1 inline"/> {canEdit ? 'Edycja' : 'Podgląd'}</span>
+          </div>
+          <EnclosureDocumentForm data={data} onChange={changeForm} disabled={!canEdit}/>
+        </aside>
+
+        <main className="min-h-0 overflow-y-auto bg-slate-200/60 p-3 md:p-5 xl:p-6">
+          <div className="mx-auto mb-3 flex max-w-[980px] flex-wrap items-center justify-between gap-2">
+            <div><h2 className="text-sm font-bold text-slate-800">Podgląd końcowego dokumentu</h2><p className="mt-0.5 text-[11px] text-slate-500">{canEdit ? 'Kliknij dowolny tekst lub komórkę tabeli, aby poprawić treść bezpośrednio na dokumencie.' : 'Dokument w trybie tylko do odczytu.'}</p></div>
+            <span className="text-[10px] font-medium text-slate-500">{previewChanged ? 'Podgląd zawiera ręczne zmiany' : 'Podgląd wygenerowany z formularza'}</span>
+          </div>
+          <DocumentPreviewEditor html={previewHtml} resetToken={previewResetToken} editable={canEdit} onChange={(html) => { setPreviewHtml(html); setPreviewChanged(true); }}/>
+          {formChanged && <p className="mx-auto mt-3 max-w-[980px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Zmieniłeś dane formularza. Gotowy podgląd nie aktualizuje się automatycznie, aby nie nadpisać ręcznie poprawionej treści. Użyj „Odśwież podgląd”, gdy chcesz ponownie zbudować dokument z pól.</p>}
+          {message && <p role="status" className="mx-auto mt-3 max-w-[980px] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">{message}</p>}
+        </main>
+      </div>
+
+      <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-2.5 md:px-6">
+        <p className="text-[11px] text-slate-500">Zatwierdzenie zapisuje zmiany lokalnie w zleceniu. Użyj „Zapisz zmiany” w lewym panelu, aby wysłać je na serwer.</p>
+        <button type="button" onClick={onClose} className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Zamknij</button>
+      </footer>
+    </div>
+  );
+};
