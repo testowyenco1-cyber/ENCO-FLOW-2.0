@@ -47,6 +47,7 @@ export interface EnclosureDocumentData {
   tynk: string;
   tynkStruktura: string;
   antygraffiti: string;
+  opisyDodatkowe: string;
   rozdzielnicaSN: string;
   rozdzielnicaNN: string;
   telemechanika: string;
@@ -235,6 +236,7 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
     tynk: firstText(details.tynk, details.wykonczenie, details.materialWykonczenia),
     tynkStruktura: firstText(details.tynkStruktura, details.strukturaTynku),
     antygraffiti: firstText(details.antygraffitiStatus, details.antygraffiti),
+    opisyDodatkowe: relatedSummary(order, 'OPISY') || asText(descriptions.documentSummary),
     rozdzielnicaSN: relatedSummary(order, 'ROZDZIELNICA_SN'),
     rozdzielnicaNN: relatedSummary(order, 'ROZDZIELNICA_NN'),
     telemechanika: relatedSummary(order, 'SZAFKA_TELEMECHANIKI'),
@@ -291,20 +293,23 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
     ['uziemienie', 'uziemienie'],
     ['instalacjaOswietleniowa', 'instalacjaOswietleniowa'],
     ['inneUrzadzenia', 'inneUrzadzenia'],
+    ['opisyDodatkowe', 'opisy'],
   ];
   for (const [documentKey, legacyKey] of legacyFieldMap) {
-    const current = hydrated[documentKey];
-    if ((current === undefined || current === null || current === '') && legacyCustom[legacyKey] !== undefined) {
+    const savedCurrent = (savedData as Record<string, unknown>)[documentKey];
+    if ((savedCurrent === undefined || savedCurrent === null || savedCurrent === '') && legacyCustom[legacyKey] !== undefined) {
       (hydrated as Record<string, unknown>)[documentKey] = legacyCustom[legacyKey];
     }
   }
-  if (!hydrated.inneUrzadzenia && legacyCustom.opisy) {
-    hydrated.inneUrzadzenia = asText(legacyCustom.opisy);
-  }
-  const legacyRoofItems = legacyCustom.wyposazenieDachu;
-  if ((!hydrated.dodatkoweWyposazenie || hydrated.dodatkoweWyposazenie.length === 0) && Array.isArray(legacyRoofItems)) {
-    hydrated.dodatkoweWyposazenie = legacyRoofItems.map(asText).filter(Boolean);
-  }
+  if (!hydrated.dachKlasa && legacyCustom.dachMaterial) hydrated.dachKlasa = asText(legacyCustom.dachMaterial);
+  const legacyRoofItems = Array.isArray(legacyCustom.wyposazenieDachu) ? legacyCustom.wyposazenieDachu.map(asText).filter(Boolean) : [];
+  const additionalItems = [...(hydrated.dodatkoweWyposazenie || [])];
+  for (const entry of legacyRoofItems) if (entry && !additionalItems.includes(entry)) additionalItems.push(entry);
+  const doorMesh = legacyCustom.siatkaDrzwi as { enabled?: unknown; quantity?: unknown } | undefined;
+  const roofMesh = legacyCustom.siatkaDach as { enabled?: unknown; quantity?: unknown } | undefined;
+  if (doorMesh?.enabled) additionalItems.push('Siatka wygradzająca przy drzwiach — ' + firstText(doorMesh.quantity, '1') + ' szt.');
+  if (roofMesh?.enabled) additionalItems.push('Siatka wygradzająca na dachu — ' + firstText(roofMesh.quantity, '1') + ' szt.');
+  hydrated.dodatkoweWyposazenie = additionalItems;
 
   hydrated.customFields = { ...base.customFields, ...legacyCustom };
   hydrated.drobneElementy = normalizeDocumentRows(savedData.drobneElementy ?? base.drobneElementy, 'element');
