@@ -85,11 +85,11 @@ export const DocumentWorkspace: React.FC<Props> = ({
     if (initial.documentContentHtml !== undefined) {
       // The saved HTML is already the authoritative document body. Load the
       // active template for administrator editing, but never render it over old content.
-      if (storedTemplate?.contentHtml && typeof storedTemplate.version === 'number') {
-        applyTemplate(storedTemplate, false);
-      } else {
-        void fetchEnclosureDocumentTemplate().then((template) => applyTemplate(template, false));
-      }
+      // The document keeps its own saved HTML, while the admin editor must
+      // always load the latest shared template rather than an older document snapshot.
+      void fetchEnclosureDocumentTemplate().then((activeTemplate) => {
+        applyTemplate(activeTemplate ?? (storedTemplate?.contentHtml ? storedTemplate : null), false);
+      });
     } else if (storedTemplate?.contentHtml && typeof storedTemplate.version === 'number') {
       applyTemplate(storedTemplate, true);
     } else {
