@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Order, OrderItem } from '../src/types/enco';
+import { getDepartureDateUrgency, type Order, type OrderItem } from '../src/types/enco';
 import {
   createEnclosureDocumentData,
   type EnclosureDocumentData,
@@ -165,4 +165,25 @@ test('HTML sanitizer removes event handlers and script tags', () => {
   const html = sanitizeDocumentHtml('<p onclick="alert(1)">Tekst</p><script>alert(1)</script>');
   assert.match(html, /Tekst/);
   assert.doesNotMatch(html, /onclick|<script/i);
+});
+
+test('departure urgency uses the current local date, not a hard-coded day', () => {
+  const now = new Date();
+  const future = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3);
+  const past = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
+  const asLocalDate = (date: Date) => [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  const upcoming = getDepartureDateUrgency(asLocalDate(future), false);
+  const overdue = getDepartureDateUrgency(asLocalDate(past), false);
+  const ready = getDepartureDateUrgency('', true);
+
+  assert.equal(upcoming.status, 'urgent');
+  assert.equal(upcoming.daysDiff, 3);
+  assert.equal(overdue.status, 'overdue');
+  assert.equal(overdue.daysDiff, -2);
+  assert.equal(ready.status, 'ready');
 });
