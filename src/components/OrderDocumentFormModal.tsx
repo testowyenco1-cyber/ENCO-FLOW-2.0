@@ -4,7 +4,7 @@ import { UserRoleProfile, USER_PROFILES, canEditItemType } from '../types/userRo
 import {
   ArrowDown, ArrowLeft, ArrowUp, Bold, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
   Code2, FileText, Heading1, Heading2, Italic, List, ListOrdered, Loader2, Plus, Printer,
-  Save, Settings2, ShieldCheck, Strikethrough, Table2, Trash2, Underline, X, Eye, EyeOff
+  Save, Settings2, ShieldCheck, Strikethrough, Table2, Trash2, Underline, X, Eye, EyeOff, RotateCcw
 } from 'lucide-react';
 
 type Row = {
@@ -20,6 +20,11 @@ type Row = {
   ventilationGrille?: boolean;
   intakeFan?: boolean;
   exhaustFan?: boolean;
+  cableType?: string;
+  diameter?: string;
+  sealType?: string;
+  sealVariant?: string;
+  notes?: string;
   _autoRuleId?: string;
   _manualDelivery?: boolean;
 };
@@ -64,11 +69,22 @@ type FormData = {
   typObudowy: string;
   rozmiar: string;
   nazwaObiektu: string;
+  oznaczenieStacji: string;
+  numerZD: string;
+  dataZD: string;
   numerZL: string;
   dataWystawienia: string;
   terminRealizacji: string;
   dotExtra: string;
   opisObudowy: string;
+  drobneElementy: Row[];
+  tynkStruktura: string;
+  montazWykonawca: string;
+  montazTermin: string;
+  montazOdpowiedzialny: string;
+  montazUwagi: string;
+  documentContentHtml?: string;
+  documentContentUpdatedAt?: string;
   dlugosc: string;
   szerokosc: string;
   wysokosc: string;
@@ -159,13 +175,17 @@ const TEMPLATE_FIELDS: FormField[] = [
   { id: 'typBudowli', label: 'Typ budowli', valueKey: 'typBudowli', type: 'text', sourcePath: 'item.details.typBudowli', required: true, helpText: 'Pobierany ze zlecenia, jeśli jest określony.' },
   { id: 'typObudowy', label: 'Typ obudowy', valueKey: 'typObudowy', type: 'select', options: ['BEK', 'NZ'], sourcePath: 'item.details.typObudowy', required: true },
   { id: 'rozmiar', label: 'Rozmiar obudowy', valueKey: 'rozmiar', type: 'text', sourcePath: 'item.details.rozmiar', required: true },
-  { id: 'nazwaObiektu', label: 'Nazwa obiektu', valueKey: 'nazwaObiektu', type: 'text', sourcePath: 'order.projectName', required: true },
+  { id: 'nazwaObiektu', label: 'Nazwa obiektu / inwestycji', valueKey: 'nazwaObiektu', type: 'text', sourcePath: 'order.projectName', required: true },
+  { id: 'oznaczenieStacji', label: 'Oznaczenie stacji', valueKey: 'oznaczenieStacji', type: 'text', sourcePath: 'item.details.oznaczenieStacji', helpText: 'Np. ST2-2262. Możesz wpisać własne oznaczenie.' },
+  { id: 'numerZD', label: 'Numer ZD', valueKey: 'numerZD', type: 'text', sourcePath: 'item.details.numerZD', helpText: 'Numer zlecenia dokumentacyjnego / produkcyjnego.' },
+  { id: 'dataZD', label: 'Data ZD', valueKey: 'dataZD', type: 'date', sourcePath: 'item.orderDate' },
   { id: 'numerZL', label: 'Numer ZL', valueKey: 'numerZL', type: 'text', sourcePath: 'order.orderNumber', required: true },
   { id: 'dataWystawienia', label: 'Data wystawienia dokumentu', valueKey: 'dataWystawienia', type: 'date', sourcePath: 'system.today', required: true },
-  { id: 'terminRealizacji', label: 'Termin realizacji', valueKey: 'terminRealizacji', type: 'date', sourcePath: 'item.plannedDate', liveBinding: true },
+  { id: 'terminRealizacji', label: 'Termin realizacji', valueKey: 'terminRealizacji', type: 'text', sourcePath: 'item.plannedDate', helpText: 'Możesz wpisać datę, sam rok lub uzgodniony okres.' },
   { id: 'dotExtra', label: 'Dodatkowa wzmianka DOT.', valueKey: 'dotExtra', type: 'text', helpText: 'Treść podstawowa DOT. jest składana z tytułu; to pole dodaje osobną wzmiankę.' },
   { id: 'opisObudowy', label: 'Opis obudowy — pełne zdanie', valueKey: 'opisObudowy', type: 'textarea', required: true, fullWidth: true },
-  { id: 'slusarka', label: 'Drzwi i ślusarka', valueKey: 'slusarka', type: 'doors', fullWidth: true, options: ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo'] },
+  { id: 'slusarka', label: 'Drzwi i ślusarka', valueKey: 'slusarka', type: 'doors', fullWidth: true, options: ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo', 'Drzwi do komory transformatora', 'Drzwi techniczne', 'Drzwi wentylacyjne', 'Krata wentylacyjna'] },
+  { id: 'drobneElementy', label: 'Pozostałe mniejsze elementy do zamontowania', valueKey: 'drobneElementy', type: 'repeatable', fullWidth: true, options: ['Kieszenie na schemat', 'Otwór do anteny', 'Chłodnica gazów', 'Dach betonowy kopertowy', 'Krata wentylacyjna', 'Inny element'], helpText: 'Możesz wybrać podpowiedź albo wpisać własną pozycję.' },
   { id: 'siatkaDrzwi', label: 'Siatka wygradzająca — drzwi i ślusarka', valueKey: 'customFields.siatkaDrzwi', type: 'quantity-toggle', defaultValue: { enabled: true, quantity: '1' } },
   { id: 'dachTyp', label: 'Rodzaj dachu', valueKey: 'dachTyp', type: 'select', options: ['Kopertowy', 'Dwuspadowy', 'Wannowy'], sourcePath: 'item.details.typDachu' },
   { id: 'dachMaterial', label: 'Materiał dachu', valueKey: 'customFields.dachMaterial', type: 'select', options: ['Betonowy', 'Stalowy', 'Inny'], sourcePath: 'item.details.dachMaterial', defaultValue: 'Betonowy' },
@@ -174,49 +194,65 @@ const TEMPLATE_FIELDS: FormField[] = [
   { id: 'dodatkoweWyposazenie', label: 'Dodatkowe wyposażenie', valueKey: 'dodatkoweWyposazenie', type: 'checkbox-list', fullWidth: true, options: ['Oświetlenie wewnętrzne i zewnętrzne', 'Antena', 'Lampki ostrzegawcze'] },
   { id: 'przepusty', label: 'Przepusty kablowe', valueKey: 'przepusty', type: 'repeatable', fullWidth: true, options: ['Przepust HEA', 'BWS 100', 'BWS 150', 'HSI 90', 'HSI 150', 'Ø100', 'Inny przepust'] },
   { id: 'otwory', label: 'Otwory i przepusty — pozostałe', valueKey: 'otwory', type: 'repeatable', fullWidth: true, options: ['Przepust HEA', 'Otwór Ø100', 'Otwór kablowy', 'Otwór wentylacyjny', 'Otwór drzwiowy', 'Inny'] },
-  { id: 'kolorObudowy', label: 'Kolor obudowy (RAL)', valueKey: 'kolorObudowy', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorShell', liveBinding: true, readOnly: true, helpText: 'Pobierane z pozycji KOLORY w bieżącym zleceniu.' },
-  { id: 'kolorSlusarki', label: 'Kolor ślusarki (RAL)', valueKey: 'kolorSlusarki', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorMetalwork', liveBinding: true, readOnly: true, helpText: 'Pobierane z pozycji KOLORY; osobny kolor ślusarki jest używany, jeśli został zapisany.' },
-  { id: 'kolorDachu', label: 'Kolor dachu (RAL)', valueKey: 'kolorDachu', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorRoof', liveBinding: true, readOnly: true, helpText: 'Pobierane z pozycji KOLORY — kolor dachu lub kolory dodatkowe.' },
-  { id: 'kolorDrzwiKraty', label: 'Kolor drzwi i krat (RAL)', valueKey: 'kolorDrzwiKraty', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorDoorsAndGrilles', liveBinding: true, readOnly: true, helpText: 'Pobierane z pozycji KOLORY.' },
-  { id: 'tynk', label: 'Tynk / wykończenie', valueKey: 'tynk', type: 'text', sourcePath: 'order.itemByType.OBUDOWA.documentFinish', liveBinding: true, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
-  { id: 'antygraffiti', label: 'Powłoka antygraffiti', valueKey: 'antygraffiti', type: 'select', options: ['Tak', 'Nie'], sourcePath: 'order.itemByType.OBUDOWA.documentAntigraffiti', liveBinding: true, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
-  { id: 'opisy', label: 'Kolory i opisy — dodatkowe uwagi', valueKey: 'customFields.opisy', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.OPISY.documentSummary', liveBinding: true, readOnly: true, helpText: 'Pobierane z pozycji OPISY w bieżącym zleceniu.' },
-  { id: 'rozdzielnicaSN', label: 'Rozdzielnica SN', valueKey: 'customFields.rozdzielnicaSN', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.ROZDZIELNICA_SN.documentSummary', liveBinding: true, readOnly: true, helpText: 'Producent, rodzaj/model, liczba i konfiguracja pól są pobierane z pozycji ROZDZIELNICA SN.' },
-  { id: 'rozdzielnicaNN', label: 'Rozdzielnica NN', valueKey: 'customFields.rozdzielnicaNN', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.ROZDZIELNICA_NN.documentSummary', liveBinding: true, readOnly: true, helpText: 'Typ, liczba pól i wyposażenie są pobierane z pozycji ROZDZIELNICA NN.' },
-  { id: 'telemechanika', label: 'Telemechanika', valueKey: 'customFields.telemechanika', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.SZAFKA_TELEMECHANIKI.documentSummary', liveBinding: true, readOnly: true, helpText: 'Pobierane z pozycji SZAFKA TELEMECHANIKI.' },
-  { id: 'transformator', label: 'Transformator stacyjny (TRAFO)', valueKey: 'customFields.transformator', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.TRANSFORMATOR.documentSummary', liveBinding: true, readOnly: true, helpText: 'Typ/model, moc znamionowa w kVA i numer seryjny są pobierane z pozycji TRANSFORMATOR.' },
-  { id: 'transformatorPotrzebWlasnych', label: 'Transformator potrzeb własnych (TPW)', valueKey: 'customFields.transformatorPotrzebWlasnych', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.TRANSFORMATOR_POTRZEB_WLASNYCH.documentSummary', liveBinding: true, readOnly: true, helpText: 'Moc w VA i numer seryjny są pobierane wyłącznie z pozycji TRANSFORMATOR POTRZEB WŁASNYCH.' },
-  { id: 'uziemienie', label: 'Rodzaj instalacji uziemiającej', valueKey: 'customFields.uziemienie', type: 'text', sourcePath: 'order.itemByType.OBUDOWA.documentGrounding', liveBinding: true, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
-  { id: 'instalacjaOswietleniowa', label: 'Informacja o instalacji oświetleniowej', valueKey: 'customFields.instalacjaOswietleniowa', type: 'text', sourcePath: 'order.itemByType.OBUDOWA.documentLighting', liveBinding: true, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
-  { id: 'inneUrzadzenia', label: 'Inne urządzenia / uwagi', valueKey: 'customFields.inneUrzadzenia', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.DODATKOWE.documentSummary', liveBinding: true, readOnly: true, helpText: 'Pobierane z pozycji DODATKOWE w bieżącym zleceniu.' },
+  { id: 'kolorObudowy', label: 'Kolor obudowy (RAL)', valueKey: 'kolorObudowy', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorShell', liveBinding: false, readOnly: false, helpText: 'Pobierane z pozycji KOLORY w bieżącym zleceniu.' },
+  { id: 'kolorSlusarki', label: 'Kolor ślusarki (RAL)', valueKey: 'kolorSlusarki', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorMetalwork', liveBinding: false, readOnly: false, helpText: 'Pobierane z pozycji KOLORY; osobny kolor ślusarki jest używany, jeśli został zapisany.' },
+  { id: 'kolorDachu', label: 'Kolor dachu (RAL)', valueKey: 'kolorDachu', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorRoof', liveBinding: false, readOnly: false, helpText: 'Pobierane z pozycji KOLORY — kolor dachu lub kolory dodatkowe.' },
+  { id: 'kolorDrzwiKraty', label: 'Kolor drzwi i krat (RAL)', valueKey: 'kolorDrzwiKraty', type: 'text', sourcePath: 'order.itemByType.KOLORY.documentColorDoorsAndGrilles', liveBinding: false, readOnly: false, helpText: 'Pobierane z pozycji KOLORY.' },
+  { id: 'tynk', label: 'Tynk / wykończenie', valueKey: 'tynk', type: 'text', sourcePath: 'order.itemByType.OBUDOWA.documentFinish', helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
+  { id: 'tynkStruktura', label: 'Struktura tynku', valueKey: 'tynkStruktura', type: 'text', helpText: 'Np. baranek, gładki lub inny rodzaj wykończenia.' },
+  { id: 'antygraffiti', label: 'Powłoka antygraffiti', valueKey: 'antygraffiti', type: 'select', options: ['Tak', 'Nie'], sourcePath: 'order.itemByType.OBUDOWA.documentAntigraffiti', liveBinding: false, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
+  { id: 'opisy', label: 'Kolory i opisy — dodatkowe uwagi', valueKey: 'customFields.opisy', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.OPISY.documentSummary', liveBinding: false, readOnly: false, helpText: 'Pobierane z pozycji OPISY w bieżącym zleceniu.' },
+  { id: 'rozdzielnicaSN', label: 'Rozdzielnica SN', valueKey: 'customFields.rozdzielnicaSN', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.ROZDZIELNICA_SN.documentSummary', liveBinding: false, readOnly: false, helpText: 'Producent, rodzaj/model, liczba i konfiguracja pól są pobierane z pozycji ROZDZIELNICA SN.' },
+  { id: 'rozdzielnicaNN', label: 'Rozdzielnica NN', valueKey: 'customFields.rozdzielnicaNN', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.ROZDZIELNICA_NN.documentSummary', liveBinding: false, readOnly: false, helpText: 'Typ, liczba pól i wyposażenie są pobierane z pozycji ROZDZIELNICA NN.' },
+  { id: 'telemechanika', label: 'Telemechanika', valueKey: 'customFields.telemechanika', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.SZAFKA_TELEMECHANIKI.documentSummary', liveBinding: false, readOnly: false, helpText: 'Pobierane z pozycji SZAFKA TELEMECHANIKI.' },
+  { id: 'transformator', label: 'Transformator stacyjny (TRAFO)', valueKey: 'customFields.transformator', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.TRANSFORMATOR.documentSummary', liveBinding: false, readOnly: false, helpText: 'Typ/model, moc znamionowa w kVA i numer seryjny są pobierane z pozycji TRANSFORMATOR.' },
+  { id: 'transformatorPotrzebWlasnych', label: 'Transformator potrzeb własnych (TPW)', valueKey: 'customFields.transformatorPotrzebWlasnych', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.TRANSFORMATOR_POTRZEB_WLASNYCH.documentSummary', liveBinding: false, readOnly: false, helpText: 'Moc w VA i numer seryjny są pobierane wyłącznie z pozycji TRANSFORMATOR POTRZEB WŁASNYCH.' },
+  { id: 'uziemienie', label: 'Rodzaj instalacji uziemiającej', valueKey: 'customFields.uziemienie', type: 'text', sourcePath: 'order.itemByType.OBUDOWA.documentGrounding', liveBinding: false, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
+  { id: 'instalacjaOswietleniowa', label: 'Informacja o instalacji oświetleniowej', valueKey: 'customFields.instalacjaOswietleniowa', type: 'text', sourcePath: 'order.itemByType.OBUDOWA.documentLighting', liveBinding: false, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.' },
+  { id: 'inneUrzadzenia', label: 'Inne urządzenia / uwagi', valueKey: 'customFields.inneUrzadzenia', type: 'textarea', fullWidth: true, sourcePath: 'order.itemByType.DODATKOWE.documentSummary', liveBinding: false, readOnly: false, helpText: 'Pobierane z pozycji DODATKOWE w bieżącym zleceniu.' },
   { id: 'dostawaWarszawa', label: 'Elementy dostarczane przez Warszawę', valueKey: 'dostawaWarszawa', type: 'delivery-list', fullWidth: true },
   { id: 'dostawaPyskowice', label: 'Elementy dostarczane przez Pyskowice', valueKey: 'dostawaPyskowice', type: 'delivery-list', fullWidth: true },
+  { id: 'montazWykonawca', label: 'Wykonawca montażu', valueKey: 'montazWykonawca', type: 'text', helpText: 'Np. firma zewnętrzna.' },
+  { id: 'montazTermin', label: 'Termin montażu', valueKey: 'montazTermin', type: 'text' },
+  { id: 'montazOdpowiedzialny', label: 'Jednostka / odpowiedzialny', valueKey: 'montazOdpowiedzialny', type: 'text', helpText: 'Np. Warszawa.' },
+  { id: 'montazUwagi', label: 'Uwagi dotyczące montażu', valueKey: 'montazUwagi', type: 'textarea', fullWidth: true },
   { id: 'uwagi', label: 'Uwagi i poprawki do dokumentu', valueKey: 'uwagi', type: 'textarea', fullWidth: true },
 ];
 
 const ORDER_BOUND_FIELD_CONFIG: Record<string, { sourcePath: string; readOnly: boolean; helpText: string; legacyPaths: string[] }> = {
-  kolorObudowy: { sourcePath: 'order.itemByType.KOLORY.documentColorShell', readOnly: true, helpText: 'Pobierane z pozycji KOLORY w bieżącym zleceniu.', legacyPaths: ['item.details.kolorObudowy'] },
-  kolorSlusarki: { sourcePath: 'order.itemByType.KOLORY.documentColorMetalwork', readOnly: true, helpText: 'Pobierane z pozycji KOLORY; używany jest osobny kolor ślusarki, jeśli został zapisany.', legacyPaths: ['item.details.kolorSlusarki'] },
-  kolorDachu: { sourcePath: 'order.itemByType.KOLORY.documentColorRoof', readOnly: true, helpText: 'Pobierane z pozycji KOLORY — kolor dachu lub kolory dodatkowe.', legacyPaths: ['item.details.kolorDachu'] },
-  kolorDrzwiKraty: { sourcePath: 'order.itemByType.KOLORY.documentColorDoorsAndGrilles', readOnly: true, helpText: 'Pobierane z pozycji KOLORY.', legacyPaths: ['item.details.kolorDrzwiKraty'] },
+  kolorObudowy: { sourcePath: 'order.itemByType.KOLORY.documentColorShell', readOnly: false, helpText: 'Pobierane z pozycji KOLORY w bieżącym zleceniu.', legacyPaths: ['item.details.kolorObudowy'] },
+  kolorSlusarki: { sourcePath: 'order.itemByType.KOLORY.documentColorMetalwork', readOnly: false, helpText: 'Pobierane z pozycji KOLORY; używany jest osobny kolor ślusarki, jeśli został zapisany.', legacyPaths: ['item.details.kolorSlusarki'] },
+  kolorDachu: { sourcePath: 'order.itemByType.KOLORY.documentColorRoof', readOnly: false, helpText: 'Pobierane z pozycji KOLORY — kolor dachu lub kolory dodatkowe.', legacyPaths: ['item.details.kolorDachu'] },
+  kolorDrzwiKraty: { sourcePath: 'order.itemByType.KOLORY.documentColorDoorsAndGrilles', readOnly: false, helpText: 'Pobierane z pozycji KOLORY.', legacyPaths: ['item.details.kolorDrzwiKraty'] },
   tynk: { sourcePath: 'order.itemByType.OBUDOWA.documentFinish', readOnly: false, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.', legacyPaths: ['item.details.tynk'] },
   antygraffiti: { sourcePath: 'order.itemByType.OBUDOWA.documentAntigraffiti', readOnly: false, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.', legacyPaths: ['item.details.antygraffitiStatus'] },
-  opisy: { sourcePath: 'order.itemByType.OPISY.documentSummary', readOnly: true, helpText: 'Pobierane z pozycji OPISY w bieżącym zleceniu.', legacyPaths: ['item.details.opisy'] },
-  rozdzielnicaSN: { sourcePath: 'order.itemByType.ROZDZIELNICA_SN.documentSummary', readOnly: true, helpText: 'Producent, rodzaj/model, liczba i konfiguracja pól są pobierane z pozycji ROZDZIELNICA SN.', legacyPaths: ['item.details.rozdzielnicaSN'] },
-  rozdzielnicaNN: { sourcePath: 'order.itemByType.ROZDZIELNICA_NN.documentSummary', readOnly: true, helpText: 'Typ, liczba pól i wyposażenie są pobierane z pozycji ROZDZIELNICA NN.', legacyPaths: ['item.details.rozdzielnicaNN'] },
-  telemechanika: { sourcePath: 'order.itemByType.SZAFKA_TELEMECHANIKI.documentSummary', readOnly: true, helpText: 'Pobierane z pozycji SZAFKA TELEMECHANIKI.', legacyPaths: ['item.details.telemechanika'] },
-  transformator: { sourcePath: 'order.itemByType.TRANSFORMATOR.documentSummary', readOnly: true, helpText: 'Typ/model, moc znamionowa w kVA i numer seryjny są pobierane wyłącznie z pozycji TRANSFORMATOR.', legacyPaths: ['item.details.transformator'] },
-  transformatorPotrzebWlasnych: { sourcePath: 'order.itemByType.TRANSFORMATOR_POTRZEB_WLASNYCH.documentSummary', readOnly: true, helpText: 'Moc w VA i numer seryjny są pobierane wyłącznie z pozycji TRANSFORMATOR POTRZEB WŁASNYCH.', legacyPaths: [] },
+  opisy: { sourcePath: 'order.itemByType.OPISY.documentSummary', readOnly: false, helpText: 'Pobierane z pozycji OPISY w bieżącym zleceniu.', legacyPaths: ['item.details.opisy'] },
+  rozdzielnicaSN: { sourcePath: 'order.itemByType.ROZDZIELNICA_SN.documentSummary', readOnly: false, helpText: 'Producent, rodzaj/model, liczba i konfiguracja pól są pobierane z pozycji ROZDZIELNICA SN.', legacyPaths: ['item.details.rozdzielnicaSN'] },
+  rozdzielnicaNN: { sourcePath: 'order.itemByType.ROZDZIELNICA_NN.documentSummary', readOnly: false, helpText: 'Typ, liczba pól i wyposażenie są pobierane z pozycji ROZDZIELNICA NN.', legacyPaths: ['item.details.rozdzielnicaNN'] },
+  telemechanika: { sourcePath: 'order.itemByType.SZAFKA_TELEMECHANIKI.documentSummary', readOnly: false, helpText: 'Pobierane z pozycji SZAFKA TELEMECHANIKI.', legacyPaths: ['item.details.telemechanika'] },
+  transformator: { sourcePath: 'order.itemByType.TRANSFORMATOR.documentSummary', readOnly: false, helpText: 'Typ/model, moc znamionowa w kVA i numer seryjny są pobierane wyłącznie z pozycji TRANSFORMATOR.', legacyPaths: ['item.details.transformator'] },
+  transformatorPotrzebWlasnych: { sourcePath: 'order.itemByType.TRANSFORMATOR_POTRZEB_WLASNYCH.documentSummary', readOnly: false, helpText: 'Moc w VA i numer seryjny są pobierane wyłącznie z pozycji TRANSFORMATOR POTRZEB WŁASNYCH.', legacyPaths: [] },
   uziemienie: { sourcePath: 'order.itemByType.OBUDOWA.documentGrounding', readOnly: false, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.', legacyPaths: ['item.details.uziemienie'] },
   instalacjaOswietleniowa: { sourcePath: 'order.itemByType.OBUDOWA.documentLighting', readOnly: false, helpText: 'Pobierane z danych pozycji Obudowa, jeśli zostało zapisane.', legacyPaths: ['item.details.instalacjaOswietleniowa'] },
-  inneUrzadzenia: { sourcePath: 'order.itemByType.DODATKOWE.documentSummary', readOnly: true, helpText: 'Pobierane z pozycji DODATKOWE w bieżącym zleceniu.', legacyPaths: ['item.details.inneUrzadzenia'] },
+  inneUrzadzenia: { sourcePath: 'order.itemByType.DODATKOWE.documentSummary', readOnly: false, helpText: 'Pobierane z pozycji DODATKOWE w bieżącym zleceniu.', legacyPaths: ['item.details.inneUrzadzenia'] },
 };
 function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate {
-  // Starsze wersje standardowego wzorca zapisane na serwerze nie powinny
-  // nadpisywać nowego, zwartego układu i tabeli dostaw.
+  // Migracja starszego wzorca obudowy: dołącz nowe pola i sekcje bez usuwania
+  // pól dodanych wcześniej przez administratora.
   const oldStandard = template.contentHtml?.includes('7. ELEMENTY DOSTARCZANE</h2><p><strong>Warszawa:</strong> {{form.dostawaWarszawa}}');
   if (oldStandard) template = { ...template, contentHtml: DEFAULT_TEMPLATE.contentHtml };
-  template = { ...template, fields: (template.fields || []).map((field) => ['dostawaWarszawa', 'dostawaPyskowice'].includes(field.id) ? { ...field, type: 'delivery-list' as FieldType } : field) };
+  const mergedFields = (template.fields || []).map((field) => {
+    const defaults = TEMPLATE_FIELDS.find((candidate) => candidate.id === field.id);
+    if (!defaults) return field;
+    return { ...clone(defaults), ...field, options: defaults.options ? [...new Set([...(defaults.options || []), ...(field.options || [])])] : field.options };
+  });
+  const knownFieldIds = new Set(mergedFields.map((field) => field.id));
+  TEMPLATE_FIELDS.forEach((field) => { if (!knownFieldIds.has(field.id)) mergedFields.push(clone(field)); });
+  const legacyDefaultIds = new Set(['naglowek', 'opis', 'drzwi', 'dach', 'otwory', 'kolory', 'urzadzenia', 'dostawy']);
+  const customSections = (template.sections || []).filter((section) => !legacyDefaultIds.has(section.id));
+  const mergedSections = [...DEFAULT_TEMPLATE.sections.map(clone), ...customSections];
+  if (!String(template.contentHtml || '').includes('{{derived.smallElements}}')) template = { ...template, contentHtml: DEFAULT_TEMPLATE.contentHtml };
+  template = { ...template, sections: mergedSections, fields: mergedFields.map((field) => ['dostawaWarszawa', 'dostawaPyskowice'].includes(field.id) ? { ...field, type: 'delivery-list' as FieldType } : field) };
   return {
     ...template,
     fields: (template.fields || []).map((field) => {
@@ -226,8 +262,8 @@ function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate
       return {
         ...field,
         sourcePath: migrateBinding ? binding.sourcePath : field.sourcePath,
-        liveBinding: migrateBinding ? true : field.liveBinding,
-        readOnly: field.readOnly ?? binding.readOnly,
+        liveBinding: false,
+        readOnly: false,
         helpText: field.helpText || binding.helpText,
       };
     }),
@@ -239,31 +275,33 @@ const DEFAULT_TEMPLATE: DocumentTemplate = {
   title: 'Zlecenie obudowy',
   version: 1,
   sections: [
-    { id: 'naglowek', title: 'Nagłówek', fieldIds: ['typBudowli', 'typObudowy', 'rozmiar', 'nazwaObiektu', 'numerZL', 'dataWystawienia', 'terminRealizacji', 'dotExtra'], columns: 2 },
-    { id: 'opis', title: 'TYP OBUDOWY — opis', fieldIds: ['opisObudowy'], columns: 1 },
-    { id: 'drzwi', title: 'Drzwi i ślusarka', fieldIds: ['slusarka', 'siatkaDrzwi'], columns: 2 },
-    { id: 'dach', title: 'Dach i wyposażenie', fieldIds: ['dachTyp', 'dachMaterial', 'roofEquipment', 'siatkaDach', 'dodatkoweWyposazenie'], columns: 2 },
-    { id: 'otwory', title: 'Otwory i przepusty kablowe', fieldIds: ['przepusty', 'otwory'], columns: 1 },
-    { id: 'kolory', title: 'Kolory i opisy', fieldIds: ['kolorObudowy', 'kolorSlusarki', 'kolorDachu', 'kolorDrzwiKraty', 'tynk', 'antygraffiti', 'opisy'], columns: 2 },
-    { id: 'urzadzenia', title: 'Ogólne urządzenia w stacji', fieldIds: ['rozdzielnicaSN', 'rozdzielnicaNN', 'telemechanika', 'transformator', 'transformatorPotrzebWlasnych', 'uziemienie', 'instalacjaOswietleniowa', 'inneUrzadzenia'], columns: 2 },
-    { id: 'dostawy', title: 'Elementy dostarczane przez Warszawę i Pyskowice', fieldIds: ['dostawaWarszawa', 'dostawaPyskowice', 'uwagi'], columns: 2 },
+    { id: 'naglowek', title: 'Dane dokumentu', fieldIds: ['typBudowli', 'typObudowy', 'rozmiar', 'nazwaObiektu', 'oznaczenieStacji', 'numerZD', 'dataZD', 'numerZL', 'dataWystawienia', 'terminRealizacji', 'dotExtra'], columns: 2 },
+    { id: 'opis', title: 'Typ obudowy i zakres wykonania', fieldIds: ['opisObudowy', 'dlugosc', 'szerokosc', 'wysokosc', 'konstrukcja', 'scianyIlosc', 'scianyKlasa', 'dachKlasa'], columns: 2 },
+    { id: 'elementy', title: 'Mniejsze elementy do zamontowania', fieldIds: ['slusarka', 'drobneElementy', 'siatkaDrzwi', 'dachTyp', 'dachMaterial', 'roofEquipment', 'siatkaDach', 'dodatkoweWyposazenie'], columns: 1 },
+    { id: 'kolory', title: 'Kolory i opis elewacji', fieldIds: ['kolorObudowy', 'kolorSlusarki', 'kolorDachu', 'kolorDrzwiKraty', 'tynk', 'tynkStruktura', 'antygraffiti', 'opisy'], columns: 2 },
+    { id: 'otwory', title: 'Przepusty kablowe i otwory', fieldIds: ['przepusty', 'otwory'], columns: 1 },
+    { id: 'urzadzenia', title: 'Główne urządzenia i instalacje w stacji', fieldIds: ['rozdzielnicaSN', 'rozdzielnicaNN', 'telemechanika', 'transformator', 'transformatorPotrzebWlasnych', 'uziemienie', 'instalacjaOswietleniowa', 'inneUrzadzenia'], columns: 2 },
+    { id: 'dostawy', title: 'Elementy dostarczane przez Warszawę i Pyskowice', fieldIds: ['dostawaWarszawa', 'dostawaPyskowice'], columns: 2 },
+    { id: 'montaz', title: 'Wykonanie montażu stacji', fieldIds: ['montazWykonawca', 'montazTermin', 'montazOdpowiedzialny', 'montazUwagi', 'uwagi'], columns: 2 },
   ],
   fields: TEMPLATE_FIELDS,
   contentHtml:
-    '<div style="font-family:Arial,sans-serif;color:#172334;font-size:9pt;line-height:1.2;">' +
+    '<div style="font-family:Arial,sans-serif;color:#172334;font-size:9pt;line-height:1.25;">' +
     '<p style="text-align:center;font-size:8pt;margin:0;"><strong>ENCO · ZLECENIE PRODUKCYJNE</strong></p>' +
-    '<h1 style="text-align:center;font-size:15pt;margin:2px 0;">ZLECENIE OBUDOWY</h1>' +
-    '<p style="text-align:center;font-size:10pt;margin:1px 0 5px;"><strong>{{derived.title}}</strong></p>' +
-    '<table style="width:100%;border-collapse:collapse;margin:2px 0 5px;font-size:8pt;"><tbody>' +
-    '<tr><td style="border:1px solid #cbd5e1;padding:3px;"><strong>NR ZL:</strong> {{form.numerZL}}</td><td style="border:1px solid #cbd5e1;padding:3px;"><strong>Wystawiono:</strong> {{form.dataWystawienia}}</td></tr>' +
-    '<tr><td style="border:1px solid #cbd5e1;padding:3px;"><strong>Termin:</strong> {{form.terminRealizacji}}</td><td style="border:1px solid #cbd5e1;padding:3px;"><strong>DOT.:</strong> {{derived.dot}}</td></tr></tbody></table>' +
-    '<h2>OBUDOWA</h2><p>{{form.opisObudowy}}</p>' +
-    '<h2>DRZWI I ŚLUSARKA</h2><p>{{form.slusarka}}</p><p><strong>Siatka:</strong> {{form.customFields.siatkaDrzwi}}</p>' +
-    '<h2>DACH I WYPOSAŻENIE</h2><p><strong>Dach:</strong> {{form.customFields.dachMaterial}} {{form.dachTyp}}</p><p>{{form.customFields.wyposazenieDachu}}</p><p>{{form.dodatkoweWyposazenie}}</p><p><strong>Siatka:</strong> {{form.customFields.siatkaDach}}</p>' +
-    '<h2>OTWORY I PRZEPUSTY</h2><p><strong>Przepusty:</strong> {{form.przepusty}}</p><p><strong>Otwory:</strong> {{form.otwory}}</p>' +
-    '<h2>KOLORY I OPISY</h2><p><strong>Obudowa:</strong> {{form.kolorObudowy}}; <strong>ślusarka:</strong> {{form.kolorSlusarki}}; <strong>dach:</strong> {{form.kolorDachu}}; <strong>drzwi i kraty:</strong> {{form.kolorDrzwiKraty}}.</p><p><strong>Wykończenie:</strong> {{form.tynk}}; <strong>antygraffiti:</strong> {{form.antygraffiti}}</p><p>{{form.customFields.opisy}}</p>' +
-    '<h2>URZĄDZENIA W STACJI</h2><p><strong>SN:</strong> {{form.customFields.rozdzielnicaSN}}; <strong>NN:</strong> {{form.customFields.rozdzielnicaNN}}</p><p><strong>Telemechanika:</strong> {{form.customFields.telemechanika}}; <strong>TRAFO:</strong> {{form.customFields.transformator}}; <strong>TPW:</strong> {{form.customFields.transformatorPotrzebWlasnych}}</p><p><strong>Uziemienie:</strong> {{form.customFields.uziemienie}}; <strong>Oświetlenie:</strong> {{form.customFields.instalacjaOswietleniowa}}; <strong>Inne:</strong> {{form.customFields.inneUrzadzenia}}</p>' +
-    '<h2>ELEMENTY DOSTARCZANE</h2>{{derived.deliveryTable}}<p><strong>Uwagi:</strong> {{form.uwagi}}</p>' +
+    '<h1 style="text-align:center;font-size:15pt;margin:3px 0;">WYKONANIE STACJI TRANSFORMATOROWEJ</h1>' +
+    '<p style="text-align:center;font-size:11pt;margin:1px 0 7px;"><strong>{{derived.title}}</strong></p>' +
+    '<p style="text-align:center;margin:2px 0;"><strong>ZD NR {{form.numerZD}} z dnia {{form.dataZD}}</strong></p>' +
+    '<p style="text-align:center;margin:2px 0;"><strong>ZL {{form.numerZL}}</strong></p>' +
+    '<p style="margin:4px 0;"><strong>DOT.:</strong> {{derived.dot}}</p>' +
+    '<p style="margin:4px 0;"><strong>TERMIN REALIZACJI:</strong> {{form.terminRealizacji}}</p>' +
+    '<h2>ZAKRES PRAC</h2><h3>TYP OBUDOWY</h3><p>{{form.opisObudowy}}</p>' +
+    '<h3>Mniejsze elementy do zamontowania</h3>{{derived.smallElements}}' +
+    '<h3>Kolory i opis elewacji</h3>{{derived.colours}}' +
+    '<h3>Przepusty kablowe</h3>{{derived.passages}}' +
+    '<h2>W STACJI BĘDĄ ZAMONTOWANE NASTĘPUJĄCE URZĄDZENIA</h2>{{derived.mainEquipment}}' +
+    '<h2>ELEMENTY DOSTARCZANE PRZEZ WARSZAWĘ I PYSKOWICE</h2>{{derived.deliveryTable}}' +
+    '{{derived.mountingSection}}' +
+    '<p><strong>UWAGI:</strong> {{form.uwagi}}</p>' +
     '</div>',
   rules: [
     { id: 'antena-otwor', triggerFieldId: 'dodatkoweWyposazenie', triggerValue: 'Antena', targetFieldId: 'roofEquipment', targetValue: 'Otwór do wyprowadzenia kabla do anteny', action: 'automatic' },
@@ -282,11 +320,20 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     typObudowy,
     rozmiar,
     nazwaObiektu: String(order?.projectName || ''),
+    oznaczenieStacji: String(d.oznaczenieStacji || d.symbolStacji || ''),
+    numerZD: String(d.numerZD || d.nrZD || ''),
+    dataZD: String(d.dataZD || item?.orderDate || ''),
     numerZL: String(order?.orderNumber || ''),
     dataWystawienia: savedDate || localDate(),
     terminRealizacji: String(item?.plannedDate || d.terminRealizacji || d.terminObudowy || ''),
     dotExtra: '',
     opisObudowy: 'Wykonanie obudowy ' + [typObudowy, rozmiar].filter(Boolean).join(' ') + ' wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi, wraz z montażem ślusarki i rozdzielnicy SN i nN.',
+    drobneElementy: Array.isArray(d.drobneElementy) ? d.drobneElementy : [],
+    tynkStruktura: String(d.tynkStruktura || d.strukturaTynku || ''),
+    montazWykonawca: String(d.montazWykonawca || ''),
+    montazTermin: String(d.montazTermin || ''),
+    montazOdpowiedzialny: String(d.montazOdpowiedzialny || ''),
+    montazUwagi: String(d.montazUwagi || ''),
     dlugosc: String(d.dlugoscObudowy || d.dlugosc || ''),
     szerokosc: String(d.szerokoscObudowy || d.szerokosc || ''),
     wysokosc: String(d.wysokoscObudowy || d.wysokosc || ''),
@@ -301,6 +348,12 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     kolorDrzwiKraty: String(d.kolorDrzwiKraty || ''),
     antygraffiti: d.antygraffiti === true ? 'Tak' : d.antygraffiti === false && d.antygraffiti !== undefined ? 'Nie' : String(d.antygraffitiStatus || ''),
     tynk: String(d.tynk || ''),
+    tynkStruktura: String(d.tynkStruktura || d.strukturaTynku || ''),
+    drobneElementy: Array.isArray(d.drobneElementy) ? d.drobneElementy : [],
+    montazWykonawca: String(d.montazWykonawca || ''),
+    montazTermin: String(d.montazTermin || ''),
+    montazOdpowiedzialny: String(d.montazOdpowiedzialny || ''),
+    montazUwagi: String(d.montazUwagi || ''),
     dodatkoweWyposazenie: Array.isArray(d.dodatkoweWyposazenie) ? d.dodatkoweWyposazenie : [],
     przepusty: Array.isArray(d.przepusty) ? d.przepusty : [],
     otwory: Array.isArray(d.otwory) ? d.otwory : [],
@@ -520,6 +573,9 @@ function displayValue(value: any): string {
     if ('enabled' in value && 'quantity' in value) return value.enabled ? 'Tak, ilość: ' + String(value.quantity || '1') : 'Nie';
     if ('type' in value) {
       const row = value as Row;
+      if (row.cableType || row.diameter || row.sealType || row.sealVariant) {
+        return [row.type, row.cableType ? 'kabel ' + row.cableType : '', row.diameter ? 'wariant / średnica ' + row.diameter : '', row.sealType ? 'wkład ' + row.sealType + (row.sealVariant ? ' ' + row.sealVariant : '') : '', row.quantity ? 'ilość: ' + row.quantity : '', row.position, row.notes].filter(Boolean).join(', ');
+      }
       if (row.category || row.wings) {
         const pieces = [
           row.category || row.type,
@@ -588,15 +644,62 @@ function sanitizeHtml(html: string): string {
   };
   return Array.from(parsed.body.childNodes).map(cleanNode).join('');
 }
+function htmlList(items: string[], emptyText = '—'): string {
+  const clean = items.map((item) => String(item || '').trim()).filter(Boolean);
+  return clean.length ? '<ul style="margin:2px 0 5px;padding-left:18px;">' + clean.map((item) => '<li style="margin:1px 0;">' + escapeHtml(item) + '</li>').join('') + '</ul>' : '<p>' + escapeHtml(emptyText) + '</p>';
+}
+function renderSmallElementsHtml(form: FormData): string {
+  const items: string[] = [];
+  (form.slusarka || []).forEach((row) => { if (row.type) items.push(displayValue(row)); });
+  (form.drobneElementy || []).forEach((row) => { if (row.type) items.push(displayValue(row)); });
+  const roofItems = Array.isArray(form.customFields?.wyposazenieDachu) ? form.customFields.wyposazenieDachu : [];
+  roofItems.forEach((value: string) => { if (value) items.push(value); });
+  (form.dodatkoweWyposazenie || []).forEach((value) => { if (value) items.push(value); });
+  if (form.dachTyp) items.push('Dach ' + [form.customFields?.dachMaterial, form.dachTyp].filter(Boolean).join(' '));
+  const doorMesh = form.customFields?.siatkaDrzwi;
+  const roofMesh = form.customFields?.siatkaDach;
+  if (doorMesh?.enabled) items.push('Siatka wygradzająca przy drzwiach — ' + String(doorMesh.quantity || '1') + ' szt.');
+  if (roofMesh?.enabled) items.push('Siatka wygradzająca na dachu — ' + String(roofMesh.quantity || '1') + ' szt.');
+  return htmlList(items, 'Nie wskazano dodatkowych elementów.');
+}
+function renderColoursHtml(form: FormData): string {
+  const colours = [['obudowa', form.kolorObudowy], ['ślusarka', form.kolorSlusarki], ['dach', form.kolorDachu], ['drzwi i kraty', form.kolorDrzwiKraty]]
+    .filter((entry) => Boolean(entry[1])).map((entry) => entry[0] + ': ' + entry[1]);
+  const finish = [form.tynk ? 'Tynk: ' + form.tynk : '', form.tynkStruktura ? 'struktura: ' + form.tynkStruktura : '', form.antygraffiti ? 'powłoka antygraffiti: ' + form.antygraffiti : ''].filter(Boolean).join('; ');
+  return '<p><strong>Kolory:</strong> ' + escapeHtml(colours.join('; ') || 'Do ustalenia') + '</p>' +
+    (finish ? '<p><strong>Wykończenie elewacji:</strong> ' + escapeHtml(finish) + '</p>' : '') +
+    (form.customFields?.opisy ? '<p>' + escapeHtml(String(form.customFields.opisy)).replace(/\r\n?|\n/g, '<br>') + '</p>' : '');
+}
+function renderPassagesHtml(form: FormData): string {
+  return htmlList([...(form.przepusty || []), ...(form.otwory || [])].filter((row) => row && row.type).map((row) => displayValue(row)), 'Nie wskazano przepustów ani otworów.');
+}
+function renderMainEquipmentHtml(form: FormData): string {
+  const fields: Array<[string, any]> = [
+    ['Rozdzielnica SN', form.customFields?.rozdzielnicaSN], ['Rozdzielnica NN', form.customFields?.rozdzielnicaNN],
+    ['Transformator', form.customFields?.transformator], ['Transformator potrzeb własnych (TPW)', form.customFields?.transformatorPotrzebWlasnych],
+    ['Telemechanika', form.customFields?.telemechanika], ['Wewnętrzna instalacja uziemiająca', form.customFields?.uziemienie],
+    ['Wewnętrzna instalacja oświetleniowa', form.customFields?.instalacjaOswietleniowa], ['Inne urządzenia', form.customFields?.inneUrzadzenia],
+  ];
+  return htmlList(fields.filter((entry) => entry[1] !== undefined && entry[1] !== null && String(entry[1]).trim() !== '').map((entry) => entry[0] + ': ' + String(entry[1])), 'Nie uzupełniono danych urządzeń.');
+}
+function renderMountingSectionHtml(form: FormData): string {
+  const rows = [form.montazWykonawca ? 'Wykonawca: ' + form.montazWykonawca : '', form.montazTermin ? 'Termin realizacji: ' + form.montazTermin : '', form.montazOdpowiedzialny ? form.montazOdpowiedzialny : '', form.montazUwagi ? 'Uwagi: ' + form.montazUwagi : ''].filter(Boolean);
+  return rows.length ? '<h2>DOTYCZY WYKONANIA MONTAŻU STACJI</h2>' + htmlList(rows) : '';
+}
 function renderTemplateHtml(template: DocumentTemplate, form: FormData, order: Order, item?: OrderItem): string {
   const variant = form.rozmiar && form.typObudowy && form.rozmiar.toUpperCase().startsWith(form.typObudowy.toUpperCase()) ? form.rozmiar : [form.typObudowy, form.rozmiar].filter(Boolean).join(' ');
-  const titleParts = [form.typBudowli, variant, form.nazwaObiektu].filter(Boolean);
+  const titleParts = [variant, form.oznaczenieStacji, form.nazwaObiektu].filter(Boolean);
   const title = titleParts.join(' ').replace(/\s+/g, ' ').trim();
   const dot = [title, form.dotExtra].filter(Boolean).join(' — ');
   const html = template.contentHtml.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match, path: string) => {
     if (path === 'derived.title') return escapeHtml(title || '—');
-    if (path === 'derived.dot') return escapeHtml(dot || '—');
+    if (path === 'derived.dot') return escapeHtml([title, form.dotExtra].filter(Boolean).join(' — ') || '—');
     if (path === 'derived.deliveryTable') return deliveryTableHtml(form);
+    if (path === 'derived.smallElements') return renderSmallElementsHtml(form);
+    if (path === 'derived.colours') return renderColoursHtml(form);
+    if (path === 'derived.passages') return renderPassagesHtml(form);
+    if (path === 'derived.mainEquipment') return renderMainEquipmentHtml(form);
+    if (path === 'derived.mountingSection') return renderMountingSectionHtml(form);
     if (path === 'form.dostawaWarszawa' || path === 'form.dostawaPyskowice') {
       const rows = normalizeDeliveryRows(path.endsWith('Warszawa') ? form.dostawaWarszawa : form.dostawaPyskowice);
       return rows.map((row) => escapeHtml(row.type) + ' (' + escapeHtml(row.quantity || '1') + ')').join('<br>') || '—';
@@ -608,7 +711,7 @@ function renderTemplateHtml(template: DocumentTemplate, form: FormData, order: O
     else if (path.startsWith('order.') || path.startsWith('item.')) value = getPathValue(path, order, item, form);
     else value = undefined;
     if (path === 'form.przepusty' || path === 'form.otwory' || path === 'form.slusarka' || path.startsWith('form.customFields.')) value = getPathValue(path, order, item, form);
-    if ((path === 'form.dataWystawienia' || path === 'form.terminRealizacji') && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) value = value.slice(8, 10) + '.' + value.slice(5, 7) + '.' + value.slice(0, 4);
+    if ((path === 'form.dataWystawienia' || path === 'form.dataZD' || path === 'form.terminRealizacji') && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) value = value.slice(8, 10) + '.' + value.slice(5, 7) + '.' + value.slice(0, 4);
     const toHtmlLines = (text: string) => escapeHtml(text).replace(/\r\n?|\n/g, '<br>');
     if (Array.isArray(value)) {
       const rows = value.map((entry) => displayValue(entry)).filter((entry) => entry !== '—');
@@ -657,11 +760,8 @@ function hydrateFromBindings(form: FormData, template: DocumentTemplate, order: 
     if (!field.sourcePath || !field.valueKey || field.type === 'static') continue;
     const existing = getValueByKey(next, field.valueKey);
     const source = getPathValue(field.sourcePath, order, item, next);
-    // A live binding (for example the Obudowa realisation deadline) always follows the current source.
-    if (field.liveBinding) {
-      if (source !== undefined && source !== null) next = setValueByKey(next, field.valueKey, source);
-      continue;
-    }
+    // Dane ze zlecenia są kopiowane przy tworzeniu dokumentu. Po zapisaniu
+    // dokument zachowuje własny snapshot; źródło nie nadpisuje ręcznych poprawek.
     if (hasSaved && existing !== undefined) continue;
     if (existing !== undefined && existing !== null && existing !== '' && !(Array.isArray(existing) && existing.length === 0)) continue;
     if (source !== undefined && source !== null && source !== '') next = setValueByKey(next, field.valueKey, source);
@@ -744,14 +844,28 @@ const FormFieldInput: React.FC<{
   }
   if (field.type === 'repeatable') {
     const rows: Row[] = Array.isArray(value) ? value : [];
+    const optionsId = 'repeatable-options-' + field.id;
+    const updateRow = (rowId: string, patch: Partial<Row>) => onChange(rows.map((row) => row.id === rowId ? { ...row, ...patch } : row));
+    const isCableList = field.id === 'przepusty';
     return <div className="space-y-3">
+      <datalist id={optionsId}>{(field.options || []).map((option) => <option key={option} value={option}/>)}</datalist>
       <div className="flex justify-end"><button type="button" onClick={() => onChange([...rows, { id: uid('row'), type: '', quantity: '1', position: '' }])} className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold"><Plus size={14}/> Dodaj pozycję</button></div>
-      {!rows.length && <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Brak pozycji. Użyj „Dodaj pozycję”, aby dodać przepust lub otwór.</p>}
-      {rows.map((row) => <div key={row.id} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 p-3 md:grid-cols-[minmax(0,1.4fr)_80px_minmax(0,1fr)_34px]">
-        <label className="block space-y-1 text-xs font-semibold text-slate-600">Typ<select value={row.type} onChange={(event) => onChange(rows.map((candidate) => candidate.id === row.id ? { ...candidate, type: event.target.value } : candidate))} className={commonInput}><option value="">— wybierz —</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}{row.type && !(field.options || []).includes(row.type) && <option value={row.type}>{row.type}</option>}</select></label>
-        <label className="block space-y-1 text-xs font-semibold text-slate-600">Ilość<input type="number" min="1" value={row.quantity || '1'} onChange={(event) => onChange(rows.map((candidate) => candidate.id === row.id ? { ...candidate, quantity: event.target.value } : candidate))} className={commonInput}/></label>
-        <label className="block space-y-1 text-xs font-semibold text-slate-600">Położenie / opis<input value={row.position || ''} onChange={(event) => onChange(rows.map((candidate) => candidate.id === row.id ? { ...candidate, position: event.target.value } : candidate))} className={commonInput}/></label>
-        <button type="button" title="Usuń pozycję" onClick={() => onChange(rows.filter((candidate) => candidate.id !== row.id))} className="self-end rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={15}/></button>
+      {!rows.length && <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Brak pozycji. Dodaj element z katalogu albo wpisz własną nazwę.</p>}
+      {rows.map((row) => <div key={row.id} className="space-y-2 rounded-xl border border-slate-200 p-3">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1fr)_34px]">
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Rodzaj / typ<input list={optionsId} value={row.type || ''} onChange={(event) => updateRow(row.id, { type: event.target.value })} placeholder="Wybierz lub wpisz własny typ" className={commonInput}/></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Ilość<input type="number" min="1" value={row.quantity || '1'} onChange={(event) => updateRow(row.id, { quantity: event.target.value })} className={commonInput}/></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Położenie / opis<input value={row.position || ''} onChange={(event) => updateRow(row.id, { position: event.target.value })} placeholder="Np. ściana SN / zgodnie z rysunkiem" className={commonInput}/></label>
+          <button type="button" title="Usuń pozycję" onClick={() => onChange(rows.filter((candidate) => candidate.id !== row.id))} className="self-end rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={15}/></button>
+        </div>
+        {isCableList && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Rodzaj kabla<input list={optionsId + '-cable'} value={row.cableType || ''} onChange={(event) => updateRow(row.id, { cableType: event.target.value })} placeholder="SN / nN / uziemienie" className={commonInput}/></label>
+          <datalist id={optionsId + '-cable'}><option value="SN"/><option value="nN"/><option value="Uziemienie"/><option value="Inne"/></datalist>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Średnica / wariant<input value={row.diameter || ''} onChange={(event) => updateRow(row.id, { diameter: event.target.value })} placeholder="Np. 150 / fi 100" className={commonInput}/></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Typ wkładu<input value={row.sealType || ''} onChange={(event) => updateRow(row.id, { sealType: event.target.value })} placeholder="HRD / HSD" className={commonInput}/></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Wariant wkładu<input value={row.sealVariant || ''} onChange={(event) => updateRow(row.id, { sealVariant: event.target.value })} placeholder="Np. 150" className={commonInput}/></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600 sm:col-span-2 xl:col-span-4">Dodatkowe uwagi<input value={row.notes || ''} onChange={(event) => updateRow(row.id, { notes: event.target.value })} className={commonInput}/></label>
+        </div>}
       </div>)}
     </div>;
   }
@@ -809,11 +923,12 @@ const FormFieldInput: React.FC<{
     const update = (rowId: string, patch: Partial<Row>) => onChange(rows.map((row) => row.id === rowId ? { ...row, ...patch } : row));
     const categories = field.options?.length ? field.options : ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo'];
     return <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2"><p className="text-xs text-slate-500">Konfiguracja każdej pozycji jest zapisywana tylko w tym dokumencie.</p><button type="button" onClick={() => onChange([...rows, rowDefaults(field.valueKey === 'slusarka' ? 'slusarka' : field.valueKey, form)])} className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold"><Plus size={14}/> Dodaj drzwi</button></div>
+      <datalist id="door-category-options">{categories.map((category) => <option key={category} value={category}/>)}</datalist>
+      <div className="flex items-center justify-between gap-2"><p className="text-xs text-slate-500">Wybierz wariant z podpowiedzi lub wpisz własny rodzaj drzwi.</p><button type="button" onClick={() => onChange([...rows, rowDefaults(field.valueKey === 'slusarka' ? 'slusarka' : field.valueKey, form)])} className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold"><Plus size={14}/> Dodaj drzwi</button></div>
       {!rows.length && <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Nie dodano drzwi ani ślusarki.</p>}
       {rows.map((row) => <div key={row.id} className="space-y-3 rounded-xl border border-slate-200 p-3">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <label className="block space-y-1 text-xs font-semibold text-slate-600">Kategoria<select value={row.category || row.type} onChange={(event) => { const category = event.target.value; const dims = doorDimensions(form.typObudowy, category); update(row.id, { category, type: category, width: dims.width, height: dims.height }); }} className={commonInput}>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Rodzaj drzwi<input list="door-category-options" value={row.category || row.type} onChange={(event) => { const category = event.target.value; const dims = doorDimensions(form.typObudowy, category); update(row.id, { category, type: category, width: row.width || dims.width, height: row.height || dims.height }); }} className={commonInput}/></label>
           <label className="block space-y-1 text-xs font-semibold text-slate-600">Liczba skrzydeł<select value={row.wings || 'Jednoskrzydłowe'} onChange={(event) => update(row.id, { wings: event.target.value, openingSide: event.target.value === 'Jednoskrzydłowe' ? (row.openingSide || 'Lewe') : '' })} className={commonInput}><option>Jednoskrzydłowe</option><option>Dwuskrzydłowe</option></select></label>
           {(!row.wings || row.wings === 'Jednoskrzydłowe') && <label className="block space-y-1 text-xs font-semibold text-slate-600">Otwieranie<select value={row.openingSide || 'Lewe'} onChange={(event) => update(row.id, { openingSide: event.target.value })} className={commonInput}><option>Lewe</option><option>Prawe</option></select></label>}
           <div className="grid grid-cols-2 gap-2"><label className="block space-y-1 text-xs font-semibold text-slate-600">Szerokość (mm)<input value={row.width || ''} placeholder={form.typObudowy === 'NZ' ? 'wg wymiaru stacji' : '950'} onChange={(event) => update(row.id, { width: event.target.value })} className={commonInput}/></label><label className="block space-y-1 text-xs font-semibold text-slate-600">Wysokość (mm)<input value={row.height || ''} placeholder={form.typObudowy === 'NZ' ? 'wg wymiaru stacji' : '2100'} onChange={(event) => update(row.id, { height: event.target.value })} className={commonInput}/></label></div>
@@ -821,6 +936,7 @@ const FormFieldInput: React.FC<{
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(row.intakeFan)} onChange={(event) => update(row.id, { intakeFan: event.target.checked })}/> Wentylator nawiewny</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(row.exhaustFan)} onChange={(event) => update(row.id, { exhaustFan: event.target.checked })}/> Wentylator wyciągowy</label>
           <label className="block space-y-1 text-xs font-semibold text-slate-600">Ilość<input type="number" min="1" value={row.quantity || '1'} onChange={(event) => update(row.id, { quantity: event.target.value })} className={commonInput}/></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600 sm:col-span-2">Przeznaczenie / lokalizacja<input value={row.position || ''} onChange={(event) => update(row.id, { position: event.target.value })} placeholder="Np. do komory transformatora" className={commonInput}/></label>
         </div>
         <div className="flex items-center justify-between gap-2 border-t pt-2"><p className="text-xs text-slate-500">{doorRowDescription(row)}</p><button type="button" onClick={() => onChange(rows.filter((candidate) => candidate.id !== row.id))} className="rounded-lg border border-red-200 p-2 text-red-600" title="Usuń drzwi"><Trash2 size={15}/></button></div>
       </div>)}
@@ -1178,7 +1294,11 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
 
   const changedLabels: Record<string, string> = {
     typBudowli: 'Typ budowli', typObudowy: 'Typ obudowy', rozmiar: 'Rozmiar obudowy', nazwaObiektu: 'Nazwa obiektu',
+    oznaczenieStacji: 'Oznaczenie stacji', numerZD: 'Numer ZD', dataZD: 'Data ZD',
     numerZL: 'Numer ZL', dataWystawienia: 'Data wystawienia', terminRealizacji: 'Termin realizacji', dotExtra: 'Dodatkowa wzmianka DOT.',
+    documentContentHtml: 'Treść dokumentu — edycja bezpośrednia', drobneElementy: 'Mniejsze elementy',
+    tynkStruktura: 'Struktura tynku', montazWykonawca: 'Wykonawca montażu', montazTermin: 'Termin montażu',
+    montazOdpowiedzialny: 'Odpowiedzialny za montaż', montazUwagi: 'Uwagi dotyczące montażu',
     opisObudowy: 'Opis obudowy', dlugosc: 'Długość', szerokosc: 'Szerokość', wysokosc: 'Wysokość', konstrukcja: 'Konstrukcja',
     scianyIlosc: 'Liczba ścian REI', scianyKlasa: 'Klasa REI ścian', dachTyp: 'Typ dachu', dachKlasa: 'Klasa REI dachu',
     kolorObudowy: 'Kolor obudowy', kolorSlusarki: 'Kolor ślusarki', kolorDachu: 'Kolor dachu', kolorDrzwiKraty: 'Kolor drzwi i krat',
@@ -1202,7 +1322,8 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
     return displayValue(value);
   };
 
-  const renderedHtml = renderTemplateHtml(mode === 'custom' ? customDraft : mode === 'admin' ? adminDraft : activeTemplate, form, order, item);
+  const generatedHtml = renderTemplateHtml(mode === 'custom' ? customDraft : mode === 'admin' ? adminDraft : activeTemplate, form, order, item);
+  const renderedHtml = mode === 'form' && typeof form.documentContentHtml === 'string' ? sanitizeHtml(form.documentContentHtml) : generatedHtml;
   const templateForPreview = mode === 'custom' ? customDraft : mode === 'admin' ? adminDraft : activeTemplate;
 
   if (!isOpen) return null;
@@ -1454,7 +1575,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
 
   return <div className="fixed inset-0 z-[80] flex min-h-0 flex-col bg-slate-100 print:static print:block print:overflow-visible print:bg-white">
     <header className="flex shrink-0 items-center justify-between gap-3 bg-slate-900 px-4 py-3 text-white print:hidden sm:px-6">
-      <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600"><FileText size={20}/></div><div className="min-w-0"><h1 className="truncate text-sm font-bold sm:text-base">Centrum formularzy · {order.orderNumber}</h1><p className="truncate text-xs text-slate-300">{order.projectName} · {currentTemplateName}</p></div></div>
+      <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600"><FileText size={20}/></div><div className="min-w-0"><h1 className="truncate text-sm font-bold sm:text-base">Centrum dokumentów · {order.orderNumber}</h1><p className="truncate text-xs text-slate-300">{order.projectName} · {currentTemplateName}</p></div></div>
       <div className="flex shrink-0 items-center gap-2"><span className="hidden rounded-full border border-slate-600 px-2.5 py-1 text-[10px] font-semibold text-slate-300 sm:inline">{profile.name}</span><button type="button" onClick={onClose} aria-label="Zamknij formularz" className="rounded-lg p-2 hover:bg-slate-800"><X size={19}/></button></div>
     </header>
     <div className="flex min-h-0 flex-1 flex-col xl:flex-row print:block">
@@ -1482,12 +1603,25 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
       </main>
       <aside className={'flex min-h-[45vh] min-w-0 flex-1 flex-col border-t border-slate-200 bg-slate-200/70 xl:w-[52%] xl:border-l xl:border-t-0 ' + (review ? 'print:hidden' : 'print:block')}>
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-white px-3 py-2.5 sm:px-5">
-          <div><h2 className="text-sm font-bold text-slate-900">Podgląd live</h2><p className="text-[10px] text-slate-500">Wzorzec v{templateForPreview.version} · {mode === 'admin' ? 'wersja robocza administratora' : 'dokument bieżący'}</p></div>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={openReview} className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold"><Eye size={14}/> Sprawdź i drukuj</button></div>
+          <div><h2 className="text-sm font-bold text-slate-900">Podgląd dokumentu</h2><p className="text-[10px] text-slate-500">{mode === 'form' && canEdit ? 'Kliknij tekst lub komórkę tabeli, aby edytować bezpośrednio na stronie.' : 'Podgląd gotowego dokumentu'}</p></div>
+          <div className="flex flex-wrap gap-2">
+            {mode === 'form' && canEdit && form.documentContentHtml && <button type="button" onClick={() => { if (window.confirm('Przywrócić dokument z danych formularza? Ręczne poprawki na podglądzie zostaną zastąpione.')) setForm((current) => ({ ...current, documentContentHtml: undefined, documentContentUpdatedAt: undefined })); }} className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold"><RotateCcw size={14}/> Odtwórz z formularza</button>}
+            <button type="button" onClick={openReview} className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold"><Eye size={14}/> Sprawdź i drukuj</button>
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5">
           <article className="document-print-target mx-auto min-h-[700px] w-full max-w-[850px] bg-white p-6 text-slate-900 shadow-md sm:p-10 print:min-h-0 print:max-w-none print:p-0 print:shadow-none">
-            {previewEmpty ? <p className="text-sm text-slate-400">Treść dokumentu jest pusta.</p> : <div className="document-live-preview text-[10px] leading-[1.2] [&_h1]:my-1 [&_h1]:text-[15px] [&_h1]:font-bold [&_h2]:my-1 [&_h2]:border-l-2 [&_h2]:border-blue-800 [&_h2]:bg-slate-100 [&_h2]:px-2 [&_h2]:py-0.5 [&_h2]:text-[11px] [&_h2]:font-bold [&_p]:my-0.5 [&_table]:my-1 [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:p-1 [&_th]:border [&_th]:border-slate-300 [&_th]:p-1" dangerouslySetInnerHTML={{ __html: renderedHtml }}/>}
+            {previewEmpty ? <p className="text-sm text-slate-400">Treść dokumentu jest pusta.</p> : <div
+              className="document-live-preview text-[10px] leading-[1.2] [&_h1]:my-1 [&_h1]:text-[15px] [&_h1]:font-bold [&_h2]:my-1 [&_h2]:border-l-2 [&_h2]:border-blue-800 [&_h2]:bg-slate-100 [&_h2]:px-2 [&_h2]:py-0.5 [&_h2]:text-[11px] [&_h2]:font-bold [&_h3]:my-1 [&_h3]:text-[10px] [&_h3]:font-bold [&_p]:my-0.5 [&_table]:my-1 [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:p-1 [&_th]:border [&_th]:border-slate-300 [&_th]:p-1"
+              contentEditable={mode === 'form' && canEdit && !review}
+              suppressContentEditableWarning
+              onBlur={(event) => {
+                if (mode !== 'form' || !canEdit) return;
+                const nextHtml = sanitizeHtml(event.currentTarget.innerHTML);
+                setForm((current) => ({ ...current, documentContentHtml: nextHtml, documentContentUpdatedAt: new Date().toISOString() }));
+              }}
+              dangerouslySetInnerHTML={{ __html: renderedHtml }}
+            />}
           </article>
           {mode === 'admin' && <div className="mx-auto mt-3 max-w-[850px] rounded-lg border border-blue-200 bg-white p-3 text-xs text-blue-900">Po kliknięciu „Opublikuj i zastosuj” nowy układ zostanie zapisany również w aktualnie otwartym formularzu. Kopie formularzy w pozostałych zleceniach pozostaną bez zmian.</div>}
         </div>
