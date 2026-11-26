@@ -914,19 +914,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
                 setIsOrderFilesModalOpen(true);
               }}
             />
-            {canEditItemType(profile, item.type) && (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => onSaveOrderChanges(order)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors cursor-pointer"
-                  title={`Zapisz zmiany dotyczące elementu ${item.name} na serwerze`}
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Zapisz zmiany — {item.shortName}
-                </button>
-              </div>
-            )}
+
             {(isLastSNItem || isLastNNItem) && canEditItemType(profile, item.type) && (
               <div className={`rounded-xl border border-dashed ${isLastSNItem ? 'border-amber-300 bg-amber-50/50' : 'border-blue-300 bg-blue-50/50'} p-3`}>
                 <button
