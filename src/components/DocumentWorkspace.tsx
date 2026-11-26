@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Eye, FileText, Printer, RefreshCw } from 'lucide-react';
 import type { Order } from '../types/enco';
 import type { UserRoleProfile } from '../types/userRole';
@@ -6,7 +6,7 @@ import { canEditItemType } from '../types/userRole';
 import { EnclosureDocumentForm } from './documents/EnclosureDocumentForm';
 import { DocumentPreviewEditor } from './documents/DocumentPreviewEditor';
 import { createEnclosureDocumentData, type EnclosureDocumentData } from './documents/documentModel';
-import { buildEnclosureDocumentHtml, sanitizeDocumentHtml } from './documents/DocumentTemplateService';
+import { buildEnclosureDocumentHtml, fetchEnclosureDocumentTemplate, renderVersionedEnclosureTemplate, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './documents/DocumentTemplateService';
 import { updateOrderWithEnclosureDocument } from './documents/DocumentPersistence';
 
 interface Props {
@@ -26,11 +26,18 @@ export const DocumentWorkspace: React.FC<Props> = ({
     return sanitizeDocumentHtml(initial.documentContentHtml ?? buildEnclosureDocumentHtml(initial, order));
   });
   const [previewResetToken, setPreviewResetToken] = useState(0);
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const sharedTemplateRef = useRef<VersionedDocumentTemplate | null>(null);
+  const previewChangedRef = useRef(false);
+  const [sharedTemplate, setSharedTemplate] = useState<VersionedDocumentTemplate | null>(null);
+  const [templateLoading, setTemplateLoading] = useState(true);
   const [formChanged, setFormChanged] = useState(false);
   const [previewChanged, setPreviewChanged] = useState(() => {
     const initial = createEnclosureDocumentData(order);
     return initial.documentContentManual ?? Boolean(initial.documentContentHtml);
   });
+  previewChangedRef.current = previewChanged;
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const canEdit = canEditItemType(currentProfile, 'OBUDOWA');
@@ -38,12 +45,37 @@ export const DocumentWorkspace: React.FC<Props> = ({
 
   useEffect(() => {
     const next = createEnclosureDocumentData(order);
+    dataRef.current = next;
     setData(next);
     setPreviewHtml(sanitizeDocumentHtml(next.documentContentHtml ?? buildEnclosureDocumentHtml(next, order)));
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
-    setPreviewChanged(next.documentContentManual ?? Boolean(next.documentContentHtml));
+    const hasManualPreview = next.documentContentManual ?? Boolean(next.documentContentHtml);
+    previewChangedRef.current = hasManualPreview;
+    setPreviewChanged(hasManualPreview);
+    sharedTemplateRef.current = null;
+    setSharedTemplate(null);
+    setTemplateLoading(true);
     setMessage('');
+  }, [order.id]);
+
+  useEffect(() => {
+    let active = true;
+    const initial = createEnclosureDocumentData(order);
+    void fetchEnclosureDocumentTemplate().then((template) => {
+      if (!active) return;
+      sharedTemplateRef.current = template;
+      setSharedTemplate(template);
+      setTemplateLoading(false);
+      // Only new documents use the newest shared template. A saved document is
+      // its own snapshot and is never silently re-rendered from a later version.
+      if (template && initial.documentContentHtml === undefined && !previewChangedRef.current) {
+        const nextHtml = renderVersionedEnclosureTemplate(template, dataRef.current, order);
+        setPreviewHtml(sanitizeDocumentHtml(nextHtml));
+        setPreviewResetToken((value) => value + 1);
+      }
+    });
+    return () => { active = false; };
   }, [order.id]);
 
   const statusText = useMemo(() => {
@@ -53,23 +85,30 @@ export const DocumentWorkspace: React.FC<Props> = ({
   }, [canEdit, saving]);
 
   const changeForm = (next: EnclosureDocumentData) => {
+    dataRef.current = next;
     setData(next);
     setFormChanged(true);
     // Keep the generated document live until the user starts editing the page itself.
     // After that point, form edits never overwrite the user's manual wording.
-    if (!previewChanged) {
-      setPreviewHtml(sanitizeDocumentHtml(buildEnclosureDocumentHtml(next, order)));
+    if (!previewChangedRef.current) {
+      const html = sharedTemplateRef.current
+        ? renderVersionedEnclosureTemplate(sharedTemplateRef.current, next, order)
+        : buildEnclosureDocumentHtml(next, order);
+      setPreviewHtml(sanitizeDocumentHtml(html));
       setPreviewResetToken((value) => value + 1);
     }
   };
 
   const regeneratePreview = () => {
-    const nextHtml = sanitizeDocumentHtml(buildEnclosureDocumentHtml(data, order));
-    setPreviewHtml(nextHtml);
+    const html = sharedTemplateRef.current
+      ? renderVersionedEnclosureTemplate(sharedTemplateRef.current, data, order)
+      : buildEnclosureDocumentHtml(data, order);
+    setPreviewHtml(sanitizeDocumentHtml(html));
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
+    previewChangedRef.current = false;
     setPreviewChanged(false);
-    setMessage('Podgląd odtworzono z aktualnych pól formularza. Wcześniejsza ręczna edycja podglądu została zastąpiona.');
+    setMessage('Podgląd odtworzono z aktualnych pól i bieżącego wzorca. Wcześniejsza ręczna edycja została zastąpiona.');
   };
 
   const save = async () => {
@@ -82,6 +121,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         documentContentHtml: sanitizeDocumentHtml(previewHtml),
         documentContentUpdatedAt: new Date().toISOString(),
         documentContentManual: previewChanged,
+        __templateVersion: sharedTemplate?.version ?? data.__templateVersion,
         __sourceSnapshotApplied: true,
       };
       const updatedOrder = updateOrderWithEnclosureDocument(order, nextData);
@@ -129,9 +169,9 @@ export const DocumentWorkspace: React.FC<Props> = ({
         <main className="min-h-0 overflow-y-auto bg-slate-200/60 p-3 md:p-5 xl:p-6">
           <div className="mx-auto mb-3 flex max-w-[980px] flex-wrap items-center justify-between gap-2">
             <div><h2 className="text-sm font-bold text-slate-800">Podgląd końcowego dokumentu</h2><p className="mt-0.5 text-[11px] text-slate-500">{canEdit ? 'Kliknij dowolny tekst lub komórkę tabeli, aby poprawić treść bezpośrednio na dokumencie.' : 'Dokument w trybie tylko do odczytu.'}</p></div>
-            <span className="text-[10px] font-medium text-slate-500">{previewChanged ? 'Podgląd zawiera ręczne zmiany' : 'Podgląd wygenerowany z formularza'}</span>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium text-slate-500"><span>{previewChanged ? 'Podgląd zawiera ręczne zmiany' : 'Podgląd wygenerowany z formularza'}</span><span>·</span><span>{templateLoading ? 'Wczytywanie wzorca…' : sharedTemplate ? 'Wspólny wzorzec · v' + sharedTemplate.version : 'Wzorzec lokalny · v1'}</span></div>
           </div>
-          <DocumentPreviewEditor html={previewHtml} resetToken={previewResetToken} editable={canEdit} onChange={(html) => { setPreviewHtml(html); setPreviewChanged(true); }}/>
+          <DocumentPreviewEditor html={previewHtml} resetToken={previewResetToken} editable={canEdit} onChange={(html) => { setPreviewHtml(html); previewChangedRef.current = true; setPreviewChanged(true); }}/>
           {formChanged && previewChanged && <p className="mx-auto mt-3 max-w-[980px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Zmieniłeś formularz, ale podgląd zawiera już ręczne poprawki. Nie nadpisuję ich automatycznie. Użyj „Odśwież podgląd”, aby świadomie zastąpić ręczną treść wersją z formularza.</p>}
           {message && <p role="status" className="mx-auto mt-3 max-w-[980px] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">{message}</p>}
         </main>
