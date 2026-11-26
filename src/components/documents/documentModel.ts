@@ -221,68 +221,102 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
   const colors = order.items.find((candidate) => candidate.type === 'KOLORY')?.details || {};
   const descriptions = order.items.find((candidate) => candidate.type === 'OPISY')?.details || {};
   const doorDetails = order.items.find((candidate) => candidate.type === 'DRZWI')?.details || {};
-  const doorRows = sourceRows(order, 'DRZWI');
+  const relatedDoorRows = sourceRows(order, 'DRZWI');
+  // Older records kept the door list directly on OBUDOWA. Prefer the dedicated
+  // DRZWI position when it contains rows, otherwise retain that legacy list.
+  const doorRows = relatedDoorRows.length
+    ? relatedDoorRows
+    : normalizeDocumentRows(details.slusarka, 'door');
   const stationSize = firstText(details.rozmiar, order.stationSize);
   const stationType = firstText(details.typObudowy, details.typ, stationSize.match(/^(BEK|NZ)\b/i)?.[1] || '');
   const stationVariant = stationSize && stationType && stationSize.toUpperCase().startsWith(stationType.toUpperCase())
     ? stationSize
     : [stationType, stationSize].filter(Boolean).join(' ');
 
+  const additionalEquipment = Array.isArray(details.dodatkoweWyposazenie)
+    ? details.dodatkoweWyposazenie.map(asText).filter(Boolean)
+    : [];
+  const roofEquipment = Array.isArray(details.wyposazenieDachu)
+    ? details.wyposazenieDachu.map(asText).filter(Boolean)
+    : [];
+  for (const entry of roofEquipment) if (!additionalEquipment.includes(entry)) additionalEquipment.push(entry);
+  const doorMesh = details.siatkaDrzwi as { enabled?: unknown; quantity?: unknown } | undefined;
+  const roofMesh = details.siatkaDach as { enabled?: unknown; quantity?: unknown } | undefined;
+  const doorMeshLabel = doorMesh?.enabled ? 'Siatka wygradzająca przy drzwiach — ' + firstText(doorMesh.quantity, '1') + ' szt.' : '';
+  const roofMeshLabel = roofMesh?.enabled ? 'Siatka wygradzająca na dachu — ' + firstText(roofMesh.quantity, '1') + ' szt.' : '';
+  if (doorMeshLabel && !additionalEquipment.includes(doorMeshLabel)) additionalEquipment.push(doorMeshLabel);
+  if (roofMeshLabel && !additionalEquipment.includes(roofMeshLabel)) additionalEquipment.push(roofMeshLabel);
+
+  const legacyCustomFields: Record<string, unknown> = {
+    sourceDoorDetails: doorDetails,
+    dachMaterial: firstText(details.dachMaterial),
+    wyposazenieDachu: roofEquipment,
+    siatkaDrzwi: doorMesh || { enabled: false, quantity: '1' },
+    siatkaDach: roofMesh || { enabled: false, quantity: '1' },
+    opisy: firstText(details.opisy),
+    rozdzielnicaSN: firstText(details.rozdzielnicaSN),
+    rozdzielnicaNN: firstText(details.rozdzielnicaNN),
+    telemechanika: firstText(details.telemechanika),
+    transformator: firstText(details.transformator),
+    transformatorPotrzebWlasnych: firstText(details.transformatorPotrzebWlasnych),
+    uziemienie: firstText(details.uziemienie),
+    instalacjaOswietleniowa: firstText(details.instalacjaOswietleniowa),
+    inneUrzadzenia: firstText(details.inneUrzadzenia),
+  };
+
   return {
     typBudowli: firstText(details.typBudowli, 'Stacja transformatorowa'),
     typObudowy: stationType,
     rozmiar: stationSize,
     nazwaObiektu: order.projectName || '',
-    oznaczenieStacji: firstText(details.oznaczenieStacji, details.oznaczenie),
+    oznaczenieStacji: firstText(details.oznaczenieStacji, details.symbolStacji, details.oznaczenie),
     numerZD: firstText(details.numerZD, details.nrZD),
-    dataZD: firstText(item.orderDate, details.dataZD, details.dataZlecenia),
+    dataZD: firstText(details.dataZD, item.orderDate, details.dataZlecenia),
     numerZL: order.orderNumber || '',
     dataWystawienia: today(),
-    terminRealizacji: item.plannedDate || '',
+    terminRealizacji: firstText(item.plannedDate, details.terminRealizacji, details.terminObudowy),
     dotExtra: '',
     opisObudowy: firstText(details.opisObudowy, details.opis) ||
       (stationVariant
-        ? 'Wykonanie obudowy ' + stationVariant + ' wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi.'
+        ? 'Wykonanie obudowy ' + stationVariant + ' wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi, wraz z montażem ślusarki i rozdzielnicy SN i nN.'
         : ''),
-    dlugosc: firstText(details.dlugosc, details.glebokosc),
-    szerokosc: firstText(details.szerokosc),
-    wysokosc: firstText(details.wysokosc),
-    konstrukcja: firstText(details.konstrukcja, details.rodzajKonstrukcji),
-    scianyIlosc: firstText(details.scianyIlosc, details.iloscScian),
-    scianyKlasa: firstText(details.scianyKlasa, details.klasaBetonu),
-    dachTyp: firstText(details.dachTyp, details.typDachu),
-    dachKlasa: firstText(details.dachKlasa, details.klasaDachu),
+    dlugosc: firstText(details.dlugoscObudowy, details.dlugosc, details.glebokosc),
+    szerokosc: firstText(details.szerokoscObudowy, details.szerokosc),
+    wysokosc: firstText(details.wysokoscObudowy, details.wysokosc),
+    konstrukcja: firstText(details.konstrukcjaBudynku, details.konstrukcja, details.rodzajKonstrukcji),
+    scianyIlosc: firstText(details.scianyIlosc, details.scianyREIIlosc, details.iloscScian),
+    scianyKlasa: firstText(details.scianyKlasa, details.scianyREIKlasa, details.klasaBetonu),
+    dachTyp: firstText(details.dachTyp, details.typDachu, 'Kopertowy'),
+    dachKlasa: firstText(details.dachKlasa, details.dachREIKlasa, details.klasaDachu, details.dachMaterial),
     drobneElementy: normalizeDocumentRows(details.drobneElementy || details.elementyDodatkowe, 'element'),
     slusarka: doorRows,
     przepusty: normalizeDocumentRows(details.przepusty, 'przepust'),
     otwory: normalizeDocumentRows(details.otwory, 'otwor'),
-    kolorObudowy: firstText(colors.kolorObudowy, details.kolorObudowy),
+    kolorObudowy: firstText(colors.kolorObudowy, details.kolorObudowy, details.kolor),
     kolorSlusarki: firstText(colors.kolorSlusarki, colors.kolorDrzwi, details.kolorSlusarki, details.kolorDrzwi),
     kolorDachu: firstText(colors.kolorDachu, colors.koloryDodatkowe, details.kolorDachu, details.koloryDodatkowe),
     kolorDrzwiKraty: firstText(colors.kolorDrzwiKraty, colors.kolorDrzwi, details.kolorDrzwiKraty, details.kolorDrzwi),
     tynk: firstText(details.tynk, details.wykonczenie, details.materialWykonczenia),
     tynkStruktura: firstText(details.tynkStruktura, details.strukturaTynku),
     antygraffiti: firstText(details.antygraffitiStatus, details.antygraffiti),
-    opisyDodatkowe: relatedSummary(order, 'OPISY') || asText(descriptions.documentSummary),
-    rozdzielnicaSN: relatedSummary(order, 'ROZDZIELNICA_SN'),
-    rozdzielnicaNN: relatedSummary(order, 'ROZDZIELNICA_NN'),
-    telemechanika: relatedSummary(order, 'SZAFKA_TELEMECHANIKI'),
-    transformator: relatedSummary(order, 'TRANSFORMATOR'),
-    transformatorPotrzebWlasnych: relatedSummary(order, 'TRANSFORMATOR_POTRZEB_WLASNYCH'),
+    opisyDodatkowe: relatedSummary(order, 'OPISY') || firstText(descriptions.documentSummary, details.opisy),
+    rozdzielnicaSN: relatedSummary(order, 'ROZDZIELNICA_SN') || firstText(details.rozdzielnicaSN),
+    rozdzielnicaNN: relatedSummary(order, 'ROZDZIELNICA_NN') || firstText(details.rozdzielnicaNN),
+    telemechanika: relatedSummary(order, 'SZAFKA_TELEMECHANIKI') || firstText(details.telemechanika),
+    transformator: relatedSummary(order, 'TRANSFORMATOR') || firstText(details.transformator),
+    transformatorPotrzebWlasnych: relatedSummary(order, 'TRANSFORMATOR_POTRZEB_WLASNYCH') || firstText(details.transformatorPotrzebWlasnych),
     uziemienie: firstText(details.uziemienie, details.typUziemienia, details.instalacjaUziemiajaca, details.opisUziemienia, details.sposobUziemienia),
     instalacjaOswietleniowa: firstText(details.instalacjaOswietleniowa, details.instalacjaOswietlenia, details.oswietlenie, details.oswietlenieWewnetrzneZewnetrzne, details.oswietlenieOpis),
-    inneUrzadzenia: relatedSummary(order, 'DODATKOWE') || asText(descriptions.documentSummary),
-    dostawaWarszawa: [],
-    dostawaPyskowice: [],
-    montazWykonawca: '',
-    montazTermin: '',
-    montazOdpowiedzialny: '',
-    montazUwagi: '',
-    uwagi: '',
-    dodatkoweWyposazenie: [],
-    customFields: {
-      sourceDoorDetails: doorDetails,
-    },
+    inneUrzadzenia: relatedSummary(order, 'DODATKOWE') || firstText(descriptions.documentSummary, details.inneUrzadzenia),
+    dostawaWarszawa: normalizeDocumentRows(details.dostawaWarszawa, 'warszawa'),
+    dostawaPyskowice: normalizeDocumentRows(details.dostawaPyskowice, 'pyskowice'),
+    montazWykonawca: firstText(details.montazWykonawca),
+    montazTermin: firstText(details.montazTermin),
+    montazOdpowiedzialny: firstText(details.montazOdpowiedzialny),
+    montazUwagi: firstText(details.montazUwagi),
+    uwagi: firstText(details.uwagiDoZleceniaObudowy, details.uwagi, 'Proszę o umieszczenie zdjęć stacji po wykonaniu na serwerze.'),
+    dodatkoweWyposazenie: additionalEquipment,
+    customFields: legacyCustomFields,
     __sourceSnapshotApplied: true,
   };
 };
