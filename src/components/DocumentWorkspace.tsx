@@ -244,6 +244,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
               previewTemplateRef.current = published;
               setPreviewHtml(sanitizeDocumentHtml(nextHtml));
               setPreviewResetToken((value) => value + 1);
+              setFormChanged(false);
             }
             setMessage('Opublikowano wspólny wzorzec v' + published.version + '. Nowe dokumenty użyją tej wersji; istniejąca treść i ręczne poprawki pozostają bez zmian.');
           }}
