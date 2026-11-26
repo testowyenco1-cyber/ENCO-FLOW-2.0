@@ -311,3 +311,109 @@ select,
 textarea { color: var(--enco-text); }
 input::placeholder,
 textarea::placeholder { color: var(--enco-text-muted); opacity: 1; }
+
+
+/* Lewy panel nawigacji — spokojna, jasna paleta spójna z resztą aplikacji. */
+#enco-navigation-menu {
+  background: #f4f6f9 !important;
+  border-right-color: #d5dde7 !important;
+  color: #26364a !important;
+}
+
+#enco-navigation-menu > div:first-child > p,
+#enco-navigation-menu > div > p {
+  color: #64748b !important;
+}
+
+#enco-navigation-menu button {
+  color: #35465b;
+}
+
+#enco-navigation-menu > div:first-child > div > button[class*="bg-blue-600"],
+#enco-navigation-menu > div:last-child > button[class*="bg-blue-600"] {
+  background: #e4edf7 !important;
+  color: #234b73 !important;
+  border: 1px solid #c6d6e7 !important;
+  box-shadow: inset 3px 0 0 #527ba4;
+}
+
+#enco-navigation-menu > div:first-child > div > button:not([class*="bg-blue-600"]):hover,
+#enco-navigation-menu > div:last-child > button:not([class*="bg-blue-600"]):hover {
+  background: #e9eef4 !important;
+  color: #243b55 !important;
+}
+
+#enco-navigation-menu section {
+  background: #ffffff !important;
+  border-color: #d8e0e9 !important;
+  box-shadow: 0 1px 2px rgb(25 42 62 / 4%);
+}
+
+#enco-navigation-menu section .text-white {
+  color: #26364a !important;
+}
+
+#enco-navigation-menu section .text-slate-200 {
+  color: #465970 !important;
+}
+
+#enco-navigation-menu section .text-slate-400 {
+  color: #718096 !important;
+}
+
+#enco-navigation-menu section .border-t {
+  border-color: #e1e7ee !important;
+}
+
+#enco-navigation-menu section [class*="bg-emerald-950"] {
+  background: #edf5f0 !important;
+  border-color: #cbded2 !important;
+  color: #35664e !important;
+}
+
+#enco-navigation-menu section [class*="bg-rose-950"] {
+  background: #f8eeee !important;
+  border-color: #e7cfd1 !important;
+  color: #8d4d52 !important;
+}
+
+#enco-navigation-menu > div:nth-of-type(2) button[class*="bg-blue-600"] {
+  background: #e7eef7 !important;
+  color: #284f77 !important;
+  border-color: #c5d5e6 !important;
+}
+
+#enco-navigation-menu > div:nth-of-type(2) button:not([class*="bg-blue-600"]) {
+  background: #ffffff !important;
+  color: #465970 !important;
+  border-color: #d5dee8 !important;
+}
+
+#enco-navigation-menu > div:nth-of-type(2) button:hover {
+  background: #edf1f6 !important;
+}
+
+#enco-navigation-menu > div.border-t {
+  border-color: #dce3eb !important;
+}
+
+#enco-navigation-menu button[title="Zapisz niezapisane zmiany na serwerze"] {
+  background: #315f8c !important;
+  color: #ffffff !important;
+  border-color: #315f8c !important;
+  box-shadow: none !important;
+}
+
+#enco-navigation-menu button[title="Wszystkie zmiany są zapisane"] {
+  background: #e9eef4 !important;
+  color: #63748a !important;
+  border-color: #d5dee8 !important;
+}
+
+#enco-navigation-menu .text-rose-300 {
+  color: #9b555b !important;
+}
+
+#enco-navigation-menu .text-slate-500 {
+  color: #718096 !important;
+}
