@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Order,
   OrderItem,
@@ -17,7 +17,6 @@ import {
   saveDoorOrders,
   fetchOrdersFromServer,
   saveOrdersToServer,
-  saveSingleOrderToServer,
   hasPendingOrderChanges,
   hasPendingDoorOrderChanges,
   setServerOrdersSnapshot,
@@ -43,7 +42,7 @@ import type { AuthUser } from './types/auth';
 import { getBootstrapStatus, getCurrentAuthUser, logout as logoutAuth } from './services/authService';
 import { profileForAuthUser } from './utils/authUserProfile';
 import { DoorOrderDetailView } from './components/DoorOrderDetailView';
-import { SNOrdersView } from './components/SNOrdersView';
+import { SNOrdersView, type SNPendingChanges } from './components/SNOrdersView';
 import { CalendarView } from './components/CalendarView';
 import { CustomerDatabaseModal } from './components/CustomerDatabaseModal';
 import { DatabaseManagementModal } from './components/DatabaseManagementModal';
@@ -252,6 +251,14 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
   const [isSavingChanges, setIsSavingChanges] = useState(false);
   const pendingOrdersRef = useRef(false);
   const pendingDoorOrdersRef = useRef(false);
+  const [snPendingChanges, setSnPendingChanges] = useState<SNPendingChanges | null>(null);
+  const [snRefreshToken, setSnRefreshToken] = useState(0);
+  const snPendingChangesRef = useRef<SNPendingChanges | null>(null);
+  const handleSNPendingChangesChange = useCallback((changes: SNPendingChanges | null) => {
+    snPendingChangesRef.current = changes;
+    setSnPendingChanges(changes);
+    setHasPendingChanges(pendingOrdersRef.current || pendingDoorOrdersRef.current || Boolean(changes));
+  }, []);
   const refreshRequestIdRef = useRef(0);
   // Śledzi wyłącznie lokalnie otwarty formularz.
   const editingItemRef = useRef(false);
@@ -333,25 +340,26 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
   };
 
   const handleSaveOrderChanges = async (orderToSave: Order): Promise<boolean> => {
-    const latestOrders = orders.map((current) => current.id === orderToSave.id ? orderToSave : current);
-    saveOrders(latestOrders);
-    setOrders(latestOrders);
-    ordersRef.current = latestOrders;
-    pendingOrdersRef.current = true;
-    setHasPendingChanges(true);
+    const latestOrders = ordersRef.current.map((current) => current.id === orderToSave.id ? orderToSave : current);
+    updateOrdersState(latestOrders);
+    showToast(`Zmiany w zleceniu ${orderToSave.orderNumber} zatwierdzono lokalnie. Aby wysłać je na serwer, użyj przycisku „Zapisz zmiany” w lewym panelu.`, 'info');
+    return true;
+  };
 
-    // Zapis pojedynczego zlecenia nie może wysłać do serwera innych
-    // zleceń, które w tej karcie są jeszcze niezapisane.
-    const saved = await saveSingleOrderToServer(orderToSave);
-    pendingOrdersRef.current = hasPendingOrderChanges(ordersRef.current);
-    setHasPendingChanges(pendingOrdersRef.current || pendingDoorOrdersRef.current);
-
-    if (saved) {
-      showToast(`Zapisano zlecenie ${orderToSave.orderNumber} na serwerze. Pozostałe lokalne zmiany nie zostały wysłane.`, 'success');
-    } else {
-      showToast('Nie udało się zapisać zlecenia na serwerze. Zmiany pozostają lokalnie — spróbuj ponownie.', 'warning');
+  const saveSNChangesToServer = async (changes: SNPendingChanges): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/sn-switchgear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changes),
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      return Boolean(data.success && Array.isArray(data.records));
+    } catch (error) {
+      console.error('Błąd zapisu zestawienia SN:', error);
+      return false;
     }
-    return saved;
   };
 
   const handleSaveAllChanges = async () => {
@@ -359,27 +367,35 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
     setIsSavingChanges(true);
     const ordersAtClick = orders;
     const doorsAtClick = doorOrders;
+    const snChangesAtClick = snPendingChangesRef.current;
     try {
-    const [ordersSaved, doorsSaved] = await Promise.all([
-      pendingOrdersRef.current ? saveOrdersToServer(ordersAtClick) : Promise.resolve(true),
-      pendingDoorOrdersRef.current ? saveDoorOrdersToServer(doorsAtClick) : Promise.resolve(true),
-    ]);
+      const [ordersSaved, doorsSaved, snSaved] = await Promise.all([
+        pendingOrdersRef.current ? saveOrdersToServer(ordersAtClick) : Promise.resolve(true),
+        pendingDoorOrdersRef.current ? saveDoorOrdersToServer(doorsAtClick) : Promise.resolve(true),
+        snChangesAtClick ? saveSNChangesToServer(snChangesAtClick) : Promise.resolve(true),
+      ]);
 
-    // Recalculate against the snapshot actually saved. If the user edited more
-    // data while the request was in flight, those newer edits remain pending.
-    if (ordersSaved) pendingOrdersRef.current = hasPendingOrderChanges(ordersRef.current);
-    if (doorsSaved) pendingDoorOrdersRef.current = hasPendingDoorOrderChanges(doorOrdersRef.current);
-    setHasPendingChanges(pendingOrdersRef.current || pendingDoorOrdersRef.current);
-
-    if (ordersSaved && doorsSaved) {
-      if (pendingOrdersRef.current || pendingDoorOrdersRef.current) {
-        showToast('Zapisano poprzedni zestaw zmian. Nowsze zmiany nadal pozostają lokalne — zapisz je ponownie.', 'info');
-      } else {
-        showToast('Zmiany zapisane na serwerze. Lokalny widok nie został odświeżony.', 'success');
+      // Keep edits made while the request was in flight pending for the next save.
+      if (ordersSaved) pendingOrdersRef.current = hasPendingOrderChanges(ordersRef.current);
+      if (doorsSaved) pendingDoorOrdersRef.current = hasPendingDoorOrderChanges(doorOrdersRef.current);
+      if (snSaved && snChangesAtClick && snPendingChangesRef.current === snChangesAtClick) {
+        snPendingChangesRef.current = null;
+        setSnPendingChanges(null);
+        setSnRefreshToken((current) => current + 1);
       }
-    } else {
-      showToast('Nie udało się zapisać wszystkich zmian na serwerze. Dane pozostają lokalnie — spróbuj ponownie.', 'warning');
-    }
+
+      const stillPending = pendingOrdersRef.current || pendingDoorOrdersRef.current || Boolean(snPendingChangesRef.current);
+      setHasPendingChanges(stillPending);
+
+      if (ordersSaved && doorsSaved && snSaved) {
+        if (stillPending) {
+          showToast('Zapisano część zmian. Nowsze lub niezapisane zmiany nadal czekają — kliknij „Zapisz zmiany” ponownie.', 'info');
+        } else {
+          showToast('Wszystkie zmiany zapisane na serwerze.', 'success');
+        }
+      } else {
+        showToast('Nie udało się zapisać wszystkich zmian. Niezapisane dane pozostały lokalnie — spróbuj ponownie.', 'warning');
+      }
     } finally {
       setIsSavingChanges(false);
     }
@@ -587,15 +603,11 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
     updateDoorOrdersState(updated);
   };
 
-  const handleSaveDoorOrdersBulk = (savedDoorOrders: DoorOrder[]) => {
-    if (!currentProfile.canManageDoors) {
-      showToast(`Profil „${currentProfile.name}” nie posiada uprawnień do edycji drzwi`, 'warning');
-      return;
-    }
-    const updates = new Map(savedDoorOrders.map((order) => [order.id, order]));
-    const updated = doorOrders.map((order) => updates.get(order.id) || order);
+  const handleStageDoorOrders = (stagedDoorOrders: DoorOrder[]) => {
+    if (!currentProfile.canManageDoors) return;
+    const updates = new Map(stagedDoorOrders.map((order) => [order.id, order]));
+    const updated = doorOrdersRef.current.map((order) => updates.get(order.id) || order);
     updateDoorOrdersState(updated);
-    showToast(`Zapisano zmiany w ${savedDoorOrders.length} zamówieniach drzwi`, 'success');
   };
 
   const handleDeleteDoorOrder = (doorOrderId: string) => {
@@ -696,7 +708,14 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
             canEditDates={currentProfile.canEditDepartureDate}
           />
         ) : activeModule === 'sn' ? (
-          <SNOrdersView orders={orders} currentProfile={currentProfile} onNavigateToOrder={handleSelectOrder} />
+          <SNOrdersView
+            orders={orders}
+            currentProfile={currentProfile}
+            onNavigateToOrder={handleSelectOrder}
+            pendingChanges={snPendingChanges}
+            refreshToken={snRefreshToken}
+            onPendingChangesChange={handleSNPendingChangesChange}
+          />
         ) : activeModule === 'documents' ? (
           <DocumentsModuleView orders={activeOrders} currentProfile={currentProfile} onOpenDocument={(order) => { setDocumentOrderId(order.id); setIsDocumentFormOpen(true); }} />
         ) : activeModule === 'doors' ? (
@@ -719,8 +738,7 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
               setEditingDoorOrder(doorOrd);
               setIsDoorOrderModalOpen(true);
             }}
-            onSaveDoorOrderDirect={handleSaveDoorOrder}
-            onSaveDoorOrdersBulk={handleSaveDoorOrdersBulk}
+            onStageDoorOrders={handleStageDoorOrders}
             onDeleteDoorOrder={handleDeleteDoorOrder}
             onQuickConfirmDelivery={handleQuickConfirmDelivery}
             onNavigateToOrder={(ordId) => navigate(`/zlecenia/${encodeURIComponent(ordId)}`)}
