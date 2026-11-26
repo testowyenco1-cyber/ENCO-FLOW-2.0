@@ -116,7 +116,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         <div className="flex flex-wrap items-center gap-2">
           <span className="hidden max-w-[340px] text-right text-[11px] text-slate-500 xl:block">{statusText}</span>
           <button type="button" disabled={!canDownload} onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Printer size={14}/> Drukuj / PDF</button>
-          {canEdit && <button type="button" disabled={!formChanged && !previewChanged} onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw size={14}/> Odśwież podgląd</button>}
+          {canEdit && <button type="button" disabled={!previewChanged} onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw size={14}/> Odśwież podgląd</button>}
           {canEdit && <button type="button" disabled={saving || !hasEnclosure} onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 size={15}/> Zatwierdź dokument</button>}
         </div>
       </header>
@@ -136,7 +136,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
             <span className="text-[10px] font-medium text-slate-500">{previewChanged ? 'Podgląd zawiera ręczne zmiany' : 'Podgląd wygenerowany z formularza'}</span>
           </div>
           <DocumentPreviewEditor html={previewHtml} resetToken={previewResetToken} editable={canEdit} onChange={(html) => { setPreviewHtml(html); setPreviewChanged(true); }}/>
-          {formChanged && <p className="mx-auto mt-3 max-w-[980px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Zmieniłeś dane formularza. Gotowy podgląd nie aktualizuje się automatycznie, aby nie nadpisać ręcznie poprawionej treści. Użyj „Odśwież podgląd”, gdy chcesz ponownie zbudować dokument z pól.</p>}
+          {formChanged && previewChanged && <p className="mx-auto mt-3 max-w-[980px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Zmieniłeś formularz, ale podgląd zawiera już ręczne poprawki. Nie nadpisuję ich automatycznie. Użyj „Odśwież podgląd”, aby świadomie zastąpić ręczną treść wersją z formularza.</p>}
           {message && <p role="status" className="mx-auto mt-3 max-w-[980px] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">{message}</p>}
         </main>
       </div>
