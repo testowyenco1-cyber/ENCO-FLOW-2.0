@@ -38,7 +38,7 @@ export const DocumentsModuleView: React.FC<DocumentsModuleViewProps> = ({ orders
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700"><FileText className="h-5 w-5" /></div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Centrum dokumentów</h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">Najpierw wybierz typ dokumentu, a potem zlecenie, dla którego chcesz go przygotować. Podgląd i wydruk nie zapisują zmian w zleceniu.</p>
+            <p className="mt-1 max-w-2xl text-sm text-slate-600">Najpierw wybierz typ dokumentu, a potem zlecenie. Dokument uzupełnia się danymi ze zlecenia, a treść możesz poprawić bezpośrednio na podglądzie. Zatwierdzenie zapisuje zmiany lokalnie; wysłanie ich na serwer wykonuje przycisk „Zapisz zmiany”.</p>
           </div>
         </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">Zlecenie obudowy dostępne</span>
