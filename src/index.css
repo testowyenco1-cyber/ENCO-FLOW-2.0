@@ -212,7 +212,7 @@ body {
 .bg-slate-900 { background-color: var(--enco-surface) !important; color: var(--enco-text) !important; }
 .bg-slate-800 { background-color: var(--enco-surface-soft) !important; color: var(--enco-text) !important; }
 .bg-slate-700 { background-color: var(--enco-surface-muted) !important; color: var(--enco-text) !important; }
-.bg-slate-800\\/70 { background-color: rgb(245 247 250 / 0.94) !important; color: var(--enco-text) !important; }
+.bg-slate-800\/70 { background-color: rgb(245 247 250 / 0.94) !important; color: var(--enco-text) !important; }
 
 /* Text hierarchy — muted text remains readable at small UI sizes. */
 .text-slate-100,
@@ -257,9 +257,9 @@ body {
 
 /* Status colors remain distinct, with softer fills and restrained outlines. */
 .bg-amber-50,
-.bg-amber-50\\/50,
-.bg-amber-50\\/70,
-.bg-amber-50\\/90 { background-color: #fbf7ed !important; }
+.bg-amber-50\/50,
+.bg-amber-50\/70,
+.bg-amber-50\/90 { background-color: #fbf7ed !important; }
 .bg-amber-100 { background-color: #f4ead2 !important; }
 .bg-amber-500 { background-color: #c28a2d !important; }
 .bg-amber-600 { background-color: #a87522 !important; }
@@ -277,8 +277,8 @@ body {
 .border-amber-600 { border-color: #d7bd8b !important; }
 
 .bg-emerald-50,
-.bg-emerald-50\\/70,
-.bg-emerald-50\\/80 { background-color: #eff7f3 !important; }
+.bg-emerald-50\/70,
+.bg-emerald-50\/80 { background-color: #eff7f3 !important; }
 .bg-emerald-100 { background-color: #dceee5 !important; }
 .bg-emerald-600 { background-color: #28765c !important; }
 .text-emerald-400,
@@ -293,8 +293,8 @@ body {
 .border-emerald-500 { border-color: #9fc9b2 !important; }
 
 .bg-rose-50,
-.bg-rose-50\\/70,
-.bg-rose-50\\/90 { background-color: #fbf1f1 !important; }
+.bg-rose-50\/70,
+.bg-rose-50\/90 { background-color: #fbf1f1 !important; }
 .bg-rose-100 { background-color: #f3dddd !important; }
 .bg-rose-600 { background-color: #ad555b !important; }
 .text-rose-600,
