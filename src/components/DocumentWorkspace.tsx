@@ -31,7 +31,10 @@ export const DocumentWorkspace: React.FC<Props> = ({
   });
   const [previewResetToken, setPreviewResetToken] = useState(0);
   const [formChanged, setFormChanged] = useState(false);
-  const [previewChanged, setPreviewChanged] = useState(false);
+  const [previewChanged, setPreviewChanged] = useState(() => {
+    const initial = createEnclosureDocumentData(order);
+    return initial.documentContentManual ?? Boolean(initial.documentContentHtml);
+  });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const canEdit = canEditItemType(currentProfile, 'OBUDOWA');
@@ -43,7 +46,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
     setPreviewHtml(sanitizeDocumentHtml(next.documentContentHtml || buildEnclosureDocumentHtml(next, order)));
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
-    setPreviewChanged(Boolean(next.documentContentHtml));
+    setPreviewChanged(next.documentContentManual ?? Boolean(next.documentContentHtml));
     setMessage('');
   }, [order.id]);
 
@@ -56,6 +59,12 @@ export const DocumentWorkspace: React.FC<Props> = ({
   const changeForm = (next: EnclosureDocumentData) => {
     setData(next);
     setFormChanged(true);
+    // Keep the generated document live until the user starts editing the page itself.
+    // After that point, form edits never overwrite the user's manual wording.
+    if (!previewChanged) {
+      setPreviewHtml(sanitizeDocumentHtml(buildEnclosureDocumentHtml(next, order)));
+      setPreviewResetToken((value) => value + 1);
+    }
   };
 
   const regeneratePreview = () => {
@@ -76,6 +85,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         ...data,
         documentContentHtml: sanitizeDocumentHtml(previewHtml),
         documentContentUpdatedAt: new Date().toISOString(),
+        documentContentManual: previewChanged,
         __sourceSnapshotApplied: true,
       };
       const updatedOrder = updateOrderWithEnclosureDocument(order, nextData);
