@@ -151,11 +151,16 @@ export const getSmallElementRows = (
   for (const row of legacy) {
     const rawName = row.type.trim();
     if (!rawName) continue;
-    const quantityMatch = rawName.match(/\s*[—-]\s*(\d+(?:[.,]\d+)?)\s*(szt\.?|kpl\.?|m|mb|m²)\s*$/i);
-    if (quantityMatch) {
-      row.type = rawName.slice(0, quantityMatch.index).trim();
-      row.quantity = quantityMatch[1].replace(',', '.');
-      row.unit = quantityMatch[2].toLocaleLowerCase('pl-PL');
+    const leadingQuantity = rawName.match(/^(\d+(?:[.,]\d+)?)\s*x\s*(.+)$/i);
+    const trailingQuantity = rawName.match(/\s*[—-]\s*(\d+(?:[.,]\d+)?)\s*(szt\.?|kpl\.?|m|mb|m²)\s*$/i);
+    if (leadingQuantity) {
+      row.type = leadingQuantity[2].trim();
+      row.quantity = leadingQuantity[1].replace(',', '.');
+      row.unit = 'szt.';
+    } else if (trailingQuantity) {
+      row.type = rawName.slice(0, trailingQuantity.index).trim();
+      row.quantity = trailingQuantity[1].replace(',', '.');
+      row.unit = trailingQuantity[2].toLocaleLowerCase('pl-PL');
     }
     const key = row.type.toLocaleLowerCase('pl-PL');
     if (!key || seen.has(key)) continue;
