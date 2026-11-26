@@ -45,8 +45,7 @@ interface DoorOrdersViewProps {
   onAddDoorOrder: () => void;
   onOpenDoorOrder?: (order: DoorOrder) => void;
   onEditDoorOrder: (order: DoorOrder) => void;
-  onSaveDoorOrderDirect?: (order: DoorOrder) => void;
-  onSaveDoorOrdersBulk?: (orders: DoorOrder[]) => void;
+  onStageDoorOrders: (orders: DoorOrder[]) => void;
   onDeleteDoorOrder: (id: string) => void;
   onQuickConfirmDelivery: (order: DoorOrder) => void;
   onNavigateToOrder?: (orderId: string) => void;
@@ -63,8 +62,7 @@ export const DoorOrdersView: React.FC<DoorOrdersViewProps> = ({
   onAddDoorOrder,
   onOpenDoorOrder,
   onEditDoorOrder,
-  onSaveDoorOrderDirect,
-  onSaveDoorOrdersBulk,
+  onStageDoorOrders,
   onDeleteDoorOrder,
   onQuickConfirmDelivery,
   onNavigateToOrder,
@@ -194,6 +192,20 @@ export const DoorOrdersView: React.FC<DoorOrdersViewProps> = ({
     });
   }, [doorOrders, dirtyDoorOrderIds]);
 
+  // Direct table edits are staged in the shared application state.
+  // The server write is performed only by the global save button in the sidebar.
+  useEffect(() => {
+    if (!dirtyDoorOrderIds.length) return;
+    const changed = dirtyDoorOrderIds
+      .map((id) => draftsById[id])
+      .filter((order): order is DoorOrder => Boolean(order))
+      .map((order) => ({ ...order, updatedAt: new Date().toISOString() }));
+    if (!changed.length) return;
+    onStageDoorOrders(changed);
+    const changedIds = new Set(changed.map((order) => order.id));
+    setDirtyDoorOrderIds((current) => current.filter((id) => !changedIds.has(id)));
+  }, [dirtyDoorOrderIds, draftsById, onStageDoorOrders]);
+
   const patchDoorOrder = (order: DoorOrder, key: keyof DoorOrder, value: any) => {
     setDraftsById((current) => {
       const existing = current[order.id] || order;
@@ -211,16 +223,6 @@ export const DoorOrdersView: React.FC<DoorOrdersViewProps> = ({
 
   const formatAmountInput = (value: number | null | undefined) =>
     value == null || !Number.isFinite(Number(value)) ? '' : Number(value).toFixed(2);
-
-  const saveDirtyDoorOrders = () => {
-    const changed = dirtyDoorOrderIds.map((id) => draftsById[id]).filter((order): order is DoorOrder => Boolean(order))
-      .map((order) => ({ ...order, updatedAt: new Date().toISOString() }));
-    if (!changed.length) return;
-    if (onSaveDoorOrdersBulk) onSaveDoorOrdersBulk(changed);
-    else if (onSaveDoorOrderDirect) changed.forEach((order) => onSaveDoorOrderDirect(order));
-    else changed.forEach((order) => onEditDoorOrder(order));
-    setDirtyDoorOrderIds([]);
-  };
 
   const toggleExpand = (id: string) => {
     setExpandedRowId((prev) => (prev === id ? null : id));
@@ -564,9 +566,9 @@ export const DoorOrdersView: React.FC<DoorOrdersViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
           <div>
             <h2 className="text-sm font-bold text-slate-900">Rejestr zamówień PZD</h2>
-            <p className="text-[11px] text-slate-600">Edytuj pola bezpośrednio w tabeli. Przycisk „Zapisz zmiany” miga, gdy są niezapisane poprawki.</p>
+            <p className="text-[11px] text-slate-600">Edytuj pola bezpośrednio w tabeli. Zmiany zostaną wysłane przyciskiem „Zapisz zmiany” w lewym panelu.</p>
           </div>
-          <div className="flex items-center gap-3"><span className="text-xs font-semibold text-slate-600">Pozycji: {filteredOrders.length} / {doorOrders.length}</span>{canManageDoors && <button type="button" onClick={saveDirtyDoorOrders} disabled={dirtyDoorOrderIds.length === 0} className={"inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition-colors " + (dirtyDoorOrderIds.length ? "animate-pulse border-amber-500 bg-amber-400 text-slate-950 shadow-md" : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400")}><CheckSquare className="h-4 w-4" />{dirtyDoorOrderIds.length ? "Zapisz zmiany (" + dirtyDoorOrderIds.length + ")" : "Zapisano"}</button>}</div>
+          <div className="flex items-center gap-3"><span className="text-xs font-semibold text-slate-600">Pozycji: {filteredOrders.length} / {doorOrders.length}</span></div>
         </div>
         {filteredOrders.length === 0 ? (
           <div className="px-4 py-12 text-center">
