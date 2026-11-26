@@ -762,7 +762,10 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
             onArchive={() => handleToggleArchive(selectedOrder)}
             isArchived={Boolean(selectedOrder.archivedAt)}
             onUpdateOrderStatus={handleUpdateOrderStatus}
-            onSaveOrderChanges={handleSaveOrderChanges}
+            onOpenDocumentWorkspace={(order) => {
+              setDocumentOrderId(order.id);
+              setIsDocumentFormOpen(true);
+            }}
             onOpenEditOrderModal={() => setIsEditOrderModalOpen(true)}
             onOpenEditItemModal={(item) => {
               editingItemRef.current = true;
