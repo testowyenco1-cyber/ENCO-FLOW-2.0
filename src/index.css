@@ -417,3 +417,98 @@ textarea::placeholder { color: var(--enco-text-muted); opacity: 1; }
 #enco-navigation-menu .text-slate-500 {
   color: #718096 !important;
 }
+
+
+/* Górny pasek — jasny, uporządkowany nagłówek z granatowymi akcentami. */
+header.sticky.top-0 {
+  background: #f8fafc !important;
+  color: #26364a !important;
+  border-bottom-color: #d6dee8 !important;
+  box-shadow: 0 1px 2px rgb(28 45 66 / 4%);
+}
+
+header.sticky.top-0 > div:first-child > button[aria-label],
+header.sticky.top-0 > div:first-child > button[title="Wybierz moduł z menu"] {
+  color: #43546a !important;
+}
+
+header.sticky.top-0 > div:first-child > button[aria-label] {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+header.sticky.top-0 > div:first-child > button[aria-label]:hover,
+header.sticky.top-0 > div:first-child > button[title="Wybierz moduł z menu"]:hover {
+  background: #edf2f7 !important;
+  color: #243b55 !important;
+}
+
+header.sticky.top-0 > div:first-child > button[title="Przejdź do zleceń stacji"] {
+  color: #243b55 !important;
+}
+
+header.sticky.top-0 > div:first-child > button[title="Przejdź do zleceń stacji"] > span:first-child {
+  background: #315f8c !important;
+  color: #ffffff !important;
+}
+
+header.sticky.top-0 > div:first-child > button[title="Przejdź do zleceń stacji"] > span:last-child > span:last-child {
+  color: #718096 !important;
+}
+
+header.sticky.top-0 > div:first-child > div[aria-hidden="true"] {
+  background: #d6dee8 !important;
+}
+
+header.sticky.top-0 > div:first-child > button[title="Wybierz moduł z menu"] {
+  background: transparent !important;
+}
+
+header.sticky.top-0 > div:first-child > button[title="Wybierz moduł z menu"] svg:first-child {
+  color: #527ba4 !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > button[title="Zalogowane konto użytkownika"] {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #26364a !important;
+  box-shadow: 0 1px 2px rgb(28 45 66 / 5%) !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > button[title="Zalogowane konto użytkownika"]:hover {
+  background: #f1f5f9 !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > button[title="Zalogowane konto użytkownika"] .text-white {
+  color: #26364a !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > button[title="Zalogowane konto użytkownika"] .text-slate-400 {
+  color: #718096 !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > button[title="Zalogowane konto użytkownika"] > span:first-child.bg-purple-600 {
+  background: #765b9b !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > button[title="Zalogowane konto użytkownika"] > span:first-child.bg-blue-600 {
+  background: #527ba4 !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > button {
+  background: #315f8c !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > button:hover {
+  background: #294f78 !important;
+}
+
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > div[role="menu"],
+header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > div.absolute {
+  background: #ffffff !important;
+  color: #26364a !important;
+  border-color: #d3dce6 !important;
+  box-shadow: 0 12px 28px rgb(28 45 66 / 12%) !important;
+}
