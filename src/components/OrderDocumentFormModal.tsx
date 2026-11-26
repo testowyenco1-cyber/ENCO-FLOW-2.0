@@ -165,7 +165,7 @@ function normalizeRowArray(value: unknown, prefix = 'row'): Row[] {
   const sourceRows = Array.isArray(value)
     ? value
     : typeof value === 'string' && value.trim()
-      ? value.split(/\\r?\\n/).map((entry) => entry.trim()).filter(Boolean)
+      ? value.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean)
       : [];
 
   return sourceRows.map((entry: any) => {
