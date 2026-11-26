@@ -8,6 +8,7 @@ import { DocumentPreviewEditor } from './documents/DocumentPreviewEditor';
 import { createEnclosureDocumentData, type EnclosureDocumentData } from './documents/documentModel';
 import { buildEnclosureDocumentHtml, fetchEnclosureDocumentTemplate, renderVersionedEnclosureTemplate, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './documents/DocumentTemplateService';
 import { updateOrderWithEnclosureDocument } from './documents/DocumentPersistence';
+import { DocumentTemplateEditorModal } from './documents/DocumentTemplateEditorModal';
 
 interface Props {
   order: Order;
@@ -40,6 +41,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
   previewChangedRef.current = previewChanged;
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
   const canEdit = canEditItemType(currentProfile, 'OBUDOWA');
   const hasEnclosure = order.items.some((item) => item.type === 'OBUDOWA');
 
@@ -166,6 +168,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="hidden max-w-[340px] text-right text-[11px] text-slate-500 xl:block">{statusText}</span>
+          {currentProfile.id === 'admin' && <button type="button" onClick={() => setTemplateEditorOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100"><FileText size={14}/> Edytuj wzorzec</button>}
           <button type="button" disabled={!canDownload} onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Printer size={14}/> Drukuj / PDF</button>
           {canEdit && <button type="button" disabled={!previewChanged} onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw size={14}/> Odśwież podgląd</button>}
           {canEdit && <button type="button" disabled={saving || !hasEnclosure} onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 size={15}/> Zatwierdź dokument</button>}
@@ -196,6 +199,18 @@ export const DocumentWorkspace: React.FC<Props> = ({
         <p className="text-[11px] text-slate-500">Zatwierdzenie zapisuje zmiany lokalnie w zleceniu. Użyj „Zapisz zmiany” w lewym panelu, aby wysłać je na serwer.</p>
         <button type="button" onClick={onClose} className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Zamknij</button>
       </footer>
+      {templateEditorOpen && currentProfile.id === 'admin' && (
+        <DocumentTemplateEditorModal
+          template={sharedTemplate}
+          onClose={() => setTemplateEditorOpen(false)}
+          onPublished={(published) => {
+            sharedTemplateRef.current = published;
+            setSharedTemplate(published);
+            setTemplateLoading(false);
+            setMessage('Opublikowano wspólny wzorzec v' + published.version + '. Będzie używany przy tworzeniu nowych dokumentów; ten dokument zachowuje swoją treść.');
+          }}
+        />
+      )}
     </div>
   );
 };
