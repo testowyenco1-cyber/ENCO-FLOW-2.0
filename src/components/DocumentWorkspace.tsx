@@ -30,6 +30,11 @@ export const DocumentWorkspace: React.FC<Props> = ({
   const dataRef = useRef(data);
   dataRef.current = data;
   const sharedTemplateRef = useRef<VersionedDocumentTemplate | null>(null);
+  const previewTemplateRef = useRef<VersionedDocumentTemplate | null>(
+    data.__templateSnapshot && typeof data.__templateSnapshot === 'object'
+      ? data.__templateSnapshot as VersionedDocumentTemplate
+      : null
+  );
   const previewChangedRef = useRef(false);
   const [sharedTemplate, setSharedTemplate] = useState<VersionedDocumentTemplate | null>(null);
   const [templateLoading, setTemplateLoading] = useState(true);
@@ -50,6 +55,9 @@ export const DocumentWorkspace: React.FC<Props> = ({
     dataRef.current = next;
     setData(next);
     setPreviewHtml(sanitizeDocumentHtml(next.documentContentHtml ?? buildEnclosureDocumentHtml(next, order)));
+    previewTemplateRef.current = next.__templateSnapshot && typeof next.__templateSnapshot === 'object'
+      ? next.__templateSnapshot as VersionedDocumentTemplate
+      : null;
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
     const hasManualPreview = next.documentContentManual ?? Boolean(next.documentContentHtml);
@@ -77,16 +85,17 @@ export const DocumentWorkspace: React.FC<Props> = ({
       // without its own snapshot may adopt the newest shared server version.
       if (template && allowRender && initial.documentContentHtml === undefined && !previewChangedRef.current) {
         const nextHtml = renderVersionedEnclosureTemplate(template, dataRef.current, order);
+        previewTemplateRef.current = template;
         setPreviewHtml(sanitizeDocumentHtml(nextHtml));
         setPreviewResetToken((value) => value + 1);
       }
     };
 
     if (initial.documentContentHtml !== undefined) {
-      // The saved HTML is already the authoritative document body. Load the
-      // active template for administrator editing, but never render it over old content.
-      // The document keeps its own saved HTML, while the admin editor must
-      // always load the latest shared template rather than an older document snapshot.
+      // The saved HTML is authoritative. Track the template snapshot that
+      // belongs to this body, while loading the current shared template only
+      // for the administrator's template editor.
+      previewTemplateRef.current = storedTemplate;
       void fetchEnclosureDocumentTemplate().then((activeTemplate) => {
         applyTemplate(activeTemplate ?? (storedTemplate?.contentHtml ? storedTemplate : null), false);
       });
@@ -111,9 +120,11 @@ export const DocumentWorkspace: React.FC<Props> = ({
     // Keep the generated document live until the user starts editing the page itself.
     // After that point, form edits never overwrite the user's manual wording.
     if (!previewChangedRef.current) {
-      const html = sharedTemplateRef.current
-        ? renderVersionedEnclosureTemplate(sharedTemplateRef.current, next, order)
+      const activeTemplate = sharedTemplateRef.current;
+      const html = activeTemplate
+        ? renderVersionedEnclosureTemplate(activeTemplate, next, order)
         : buildEnclosureDocumentHtml(next, order);
+      previewTemplateRef.current = activeTemplate;
       setPreviewHtml(sanitizeDocumentHtml(html));
       setPreviewResetToken((value) => value + 1);
     }
@@ -124,6 +135,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
     const html = activeTemplate
       ? renderVersionedEnclosureTemplate(activeTemplate, data, order)
       : buildEnclosureDocumentHtml(data, order);
+    previewTemplateRef.current = activeTemplate;
     // Explicit regeneration is the only action that replaces an existing
     // saved/manual body with the currently selected template.
     const regeneratedData: EnclosureDocumentData = {
@@ -153,11 +165,10 @@ export const DocumentWorkspace: React.FC<Props> = ({
         documentContentHtml: sanitizeDocumentHtml(previewHtml),
         documentContentUpdatedAt: new Date().toISOString(),
         documentContentManual: previewChanged,
-        // Existing documents keep the template version they were created with.
-        // A newly published shared template must not be retroactively attached to old HTML.
-        __templateVersion: data.__templateVersion ?? (data.__templateSnapshot as VersionedDocumentTemplate | undefined)?.version ??
-          (data.documentContentHtml === undefined ? sharedTemplate?.version : undefined),
-        __templateSnapshot: data.__templateSnapshot ?? (data.documentContentHtml === undefined ? sharedTemplate ?? undefined : undefined),
+        // Save the exact template version used to generate the current preview,
+        // not merely whichever version is currently published on the server.
+        __templateVersion: previewTemplateRef.current?.version ?? data.__templateVersion,
+        __templateSnapshot: previewTemplateRef.current ?? data.__templateSnapshot,
         __sourceSnapshotApplied: true,
       };
       const updatedOrder = updateOrderWithEnclosureDocument(order, nextData);
@@ -226,7 +237,15 @@ export const DocumentWorkspace: React.FC<Props> = ({
             sharedTemplateRef.current = published;
             setSharedTemplate(published);
             setTemplateLoading(false);
-            setMessage('Opublikowano wspólny wzorzec v' + published.version + '. Będzie używany przy tworzeniu nowych dokumentów; ten dokument zachowuje swoją treść.');
+            // A not-yet-saved, untouched document can adopt the new version
+            // immediately. Saved documents and manual edits are never replaced.
+            if (dataRef.current.documentContentHtml === undefined && !previewChangedRef.current) {
+              const nextHtml = renderVersionedEnclosureTemplate(published, dataRef.current, order);
+              previewTemplateRef.current = published;
+              setPreviewHtml(sanitizeDocumentHtml(nextHtml));
+              setPreviewResetToken((value) => value + 1);
+            }
+            setMessage('Opublikowano wspólny wzorzec v' + published.version + '. Nowe dokumenty użyją tej wersji; istniejąca treść i ręczne poprawki pozostają bez zmian.');
           }}
         />
       )}
