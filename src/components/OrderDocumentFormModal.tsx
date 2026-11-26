@@ -161,6 +161,32 @@ function normalizeDeliveryRows(value: unknown): Row[] {
   if (typeof value === 'string' && value.trim()) return value.split(/\r?\n/).map((v) => v.trim()).filter(Boolean).map((type) => ({ id: uid('delivery'), type, quantity: '1', position: '' }));
   return [];
 }
+function normalizeRowArray(value: unknown, prefix = 'row'): Row[] {
+  const sourceRows = Array.isArray(value)
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? value.split(/\\r?\\n/).map((entry) => entry.trim()).filter(Boolean)
+      : [];
+
+  return sourceRows.map((entry: any) => {
+    if (typeof entry === 'string') {
+      const type = entry.trim();
+      return type ? { id: uid(prefix), type, quantity: '1', position: '' } : null;
+    }
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+    const type = String(entry.type ?? entry.category ?? entry.label ?? entry.name ?? entry.value ?? '').trim();
+    const row: Row = {
+      ...entry,
+      id: String(entry.id || uid(prefix)),
+      type,
+      quantity: String(entry.quantity ?? '1'),
+      position: String(entry.position ?? entry.location ?? ''),
+    };
+    if (prefix === 'door') row.category = String(entry.category || type);
+    return row;
+  }).filter((row): row is Row => row !== null);
+}
+
 function deliveryTableHtml(form: FormData): string {
   const rows = ([
     ['Warszawa', normalizeDeliveryRows(form.dostawaWarszawa)],
@@ -173,7 +199,7 @@ function deliveryTableHtml(form: FormData): string {
     '</tr></thead><tbody>' + rows.join('') + '</tbody></table>';
 }
 const TEMPLATE_FIELDS: FormField[] = [
-  { id: 'typBudowli', label: 'Typ budowli', valueKey: 'typBudowli', type: 'text', sourcePath: 'item.details.typBudowli', required: true, helpText: 'Pobierany ze zlecenia, jeśli jest określony.' },
+  { id: 'typBudowli', label: 'Typ budowli', valueKey: 'typBudowli', type: 'text', sourcePath: 'item.details.typBudowli', required: false, defaultValue: 'Stacja transformatorowa', helpText: 'Pobierany ze zlecenia, jeśli jest określony.' },
   { id: 'typObudowy', label: 'Typ obudowy', valueKey: 'typObudowy', type: 'select', options: ['BEK', 'NZ'], sourcePath: 'item.details.typObudowy', required: true },
   { id: 'rozmiar', label: 'Rozmiar obudowy', valueKey: 'rozmiar', type: 'text', sourcePath: 'item.details.rozmiar', required: true },
   { id: 'nazwaObiektu', label: 'Nazwa obiektu / inwestycji', valueKey: 'nazwaObiektu', type: 'text', sourcePath: 'order.projectName', required: true },
@@ -251,7 +277,12 @@ function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate
   const mergedFields = (template.fields || []).map((field) => {
     const defaults = TEMPLATE_FIELDS.find((candidate) => candidate.id === field.id);
     if (!defaults) return field;
-    return { ...clone(defaults), ...field, options: defaults.options ? [...new Set([...(defaults.options || []), ...(field.options || [])])] : field.options };
+    return {
+      ...clone(defaults),
+      ...field,
+      ...(field.id === 'typBudowli' ? { required: false, defaultValue: field.defaultValue ?? defaults.defaultValue } : {}),
+      options: defaults.options ? [...new Set([...(defaults.options || []), ...(field.options || [])])] : field.options,
+    };
   });
   const knownFieldIds = new Set(mergedFields.map((field) => field.id));
   TEMPLATE_FIELDS.forEach((field) => { if (!knownFieldIds.has(field.id)) mergedFields.push(clone(field)); });
@@ -334,7 +365,7 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     terminRealizacji: String(item?.plannedDate || d.terminRealizacji || d.terminObudowy || ''),
     dotExtra: '',
     opisObudowy: 'Wykonanie obudowy ' + [typObudowy, rozmiar].filter(Boolean).join(' ') + ' wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi, wraz z montażem ślusarki i rozdzielnicy SN i nN.',
-    drobneElementy: Array.isArray(d.drobneElementy) ? d.drobneElementy : [],
+    drobneElementy: normalizeRowArray(d.drobneElementy, 'small-element'),
     tynkStruktura: String(d.tynkStruktura || d.strukturaTynku || ''),
     montazWykonawca: String(d.montazWykonawca || ''),
     montazTermin: String(d.montazTermin || ''),
@@ -355,9 +386,9 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     antygraffiti: d.antygraffiti === true ? 'Tak' : d.antygraffiti === false && d.antygraffiti !== undefined ? 'Nie' : String(d.antygraffitiStatus || ''),
     tynk: String(d.tynk || ''),
     dodatkoweWyposazenie: Array.isArray(d.dodatkoweWyposazenie) ? d.dodatkoweWyposazenie : [],
-    przepusty: Array.isArray(d.przepusty) ? d.przepusty : [],
-    otwory: Array.isArray(d.otwory) ? d.otwory : [],
-    slusarka: Array.isArray(d.slusarka) && d.slusarka.length ? d.slusarka : [
+    przepusty: normalizeRowArray(d.przepusty, 'passage'),
+    otwory: normalizeRowArray(d.otwory, 'opening'),
+    slusarka: normalizeRowArray(d.slusarka, 'door').length ? normalizeRowArray(d.slusarka, 'door') : [
       { id: uid('door'), type: 'Drzwi SN i NN', category: 'Drzwi SN i NN', quantity: '1', position: 'Do rozdzielnic SN i NN', wings: 'Jednoskrzydłowe', openingSide: 'Lewe', width: typObudowy.toUpperCase().startsWith('BEK') ? '950' : '', height: typObudowy.toUpperCase().startsWith('BEK') ? '2100' : '', ventilationGrille: true, intakeFan: false, exhaustFan: false },
       { id: uid('door'), type: 'Drzwi Trafo', category: 'Drzwi Trafo', quantity: '1', position: 'Do komory transformatora', wings: 'Jednoskrzydłowe', openingSide: 'Lewe', width: typObudowy.toUpperCase().startsWith('BEK') ? '1170' : '', height: typObudowy.toUpperCase().startsWith('BEK') ? '2100' : '', ventilationGrille: true, intakeFan: false, exhaustFan: false },
     ],
@@ -387,6 +418,12 @@ function readForm(item?: OrderItem, order?: Order): FormData {
   const saved = item?.details?.formularze?.zlecenieObudowy;
   if (saved && typeof saved === 'object') {
     const result = { ...base, ...saved, customFields: { ...base.customFields, ...(saved.customFields || {}) } } as FormData;
+    result.drobneElementy = normalizeRowArray(result.drobneElementy, 'small-element');
+    result.przepusty = normalizeRowArray(result.przepusty, 'passage');
+    result.otwory = normalizeRowArray(result.otwory, 'opening');
+    result.slusarka = normalizeRowArray(result.slusarka, 'door');
+    result.dostawaWarszawa = normalizeDeliveryRows(result.dostawaWarszawa);
+    result.dostawaPyskowice = normalizeDeliveryRows(result.dostawaPyskowice);
     if (!result.dataWystawienia) result.dataWystawienia = String(item?.createdAt || order?.createdAt || localDate()).slice(0, 10);
     return result;
   }
@@ -1347,6 +1384,10 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
   if (!isOpen) return null;
 
   const openReview = () => {
+    if (templateLoading) {
+      setMessage('Poczekaj na wczytanie wzorca dokumentu. Formularz zostanie odblokowany automatycznie.');
+      return;
+    }
     const visibleFieldIds = new Set(templateForPreview.sections.filter((section) => section.visible !== false).flatMap((section) => section.fieldIds));
     const requiredFields = templateForPreview.fields.filter((field) => visibleFieldIds.has(field.id) && field.visible !== false && field.required && field.type !== 'static' && !field.readOnly);
     const missing = requiredFields.filter((field) => {
@@ -1372,7 +1413,8 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
 
   const renderFormFields = () => (
     <div className="space-y-4">
-      {templateLoading && <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-800"><Loader2 size={16} className="animate-spin"/> Wczytywanie wzorca formularza…</div>}
+      {templateLoading && <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-800"><Loader2 size={16} className="animate-spin"/> Wczytywanie wzorca formularza — pola są chwilowo zablokowane, żeby nie utracić wpisywanych danych.</div>}
+      <fieldset disabled={templateLoading} className="min-w-0 space-y-4">
       {ruleNotices.map((notice, index) => <div key={notice + index} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{notice}</div>)}
       {activeTemplate.sections.filter((section) => section.visible !== false).map((section) => (
         <section key={section.id} className="rounded-xl border border-slate-200 bg-white p-4">
@@ -1388,6 +1430,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
           </div>
         </section>
       ))}
+      </fieldset>
     </div>
   );
 
@@ -1588,6 +1631,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
 
   const currentTemplateName = mode === 'custom' ? 'Custom Edit — tylko ten dokument' : mode === 'admin' ? 'Admin Edit — wzorzec wspólny' : 'Formularz dokumentu';
   const previewEmpty = renderedHtml.trim().length === 0;
+  const manualPreviewNeedsRefresh = Boolean(form.documentContentHtml) && changedKeys.some((key) => key !== 'documentContentHtml');
   const titleVariant = form.rozmiar && form.typObudowy && form.rozmiar.toUpperCase().startsWith(form.typObudowy.toUpperCase()) ? form.rozmiar : [form.typObudowy, form.rozmiar].filter(Boolean).join(' ');
   const titleText = [form.typBudowli, titleVariant, form.nazwaObiektu].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
@@ -1602,7 +1646,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-lg font-bold text-slate-900">{mode === 'form' ? 'Uzupełnij dane dokumentu' : mode === 'custom' ? 'Dopasuj bieżący dokument' : 'Edytuj wzorzec dokumentu'}</h2><p className="mt-1 text-xs text-slate-500">{mode === 'custom' ? 'Zmiany struktury i treści pozostają tylko w tym formularzu.' : mode === 'admin' ? 'Publikacja zastosuje wzorzec także do bieżącego formularza. Wcześniej zapisane formularze w innych zleceniach pozostaną bez zmian.' : 'Uzupełnij formularz po lewej. Gotowy dokument poprawiaj bezpośrednio na podglądzie po prawej.'}</p></div>
             {mode === 'form' ? <div className="flex flex-wrap gap-2">
-              {isAdmin && <button type="button" onClick={openAdminEdit} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"><ShieldCheck size={14}/> Admin Edit</button>}
+              {isAdmin && <button type="button" disabled={templateLoading} onClick={openAdminEdit} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"><ShieldCheck size={14}/> Admin Edit</button>}
             </div> : <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => { setMode('form'); setMessage(''); }} className="inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-xs font-semibold"><X size={14}/> Anuluj</button>
               {mode === 'custom' ? <button type="button" onClick={saveCustomEdit} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Save size={14}/> Zapisz w tym dokumencie</button> : <button type="button" disabled={templateSaving} onClick={saveAdminTemplate} className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{templateSaving ? <Loader2 size={14} className="animate-spin"/> : <ShieldCheck size={14}/>} Opublikuj i zastosuj</button>}
@@ -1613,7 +1657,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
           {mode === 'form' ? renderFormFields() : renderDesigner()}
           {mode === 'form' && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
             <div className="text-[11px] leading-4 text-slate-500">{canEdit ? 'Zatwierdzenie danych następuje dopiero na ekranie podsumowania.' : 'Możesz obejrzeć i wydrukować dokument, ale nie zapisywać zmian.'}</div>
-            <button type="button" onClick={openReview} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700"><CheckCircle2 size={16}/> Sprawdź zmiany i dokument</button>
+            <button type="button" disabled={templateLoading} onClick={openReview} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 size={16}/> Sprawdź zmiany i dokument</button>
           </div>}
           {mode !== 'form' && <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-900">{mode === 'custom' ? 'Custom Edit może zmienić tekst, sekcje, pola, kolejność i ich układ. Nic nie zmienia się we wzorcu dla innych dokumentów.' : 'Admin Edit pozwala zmieniać treść, sekcje, pola, źródła i reguły. Publikacja zapisuje nowy wzorzec oraz stosuje go do bieżącego formularza; wcześniejsze formularze w innych zleceniach pozostają bez zmian.'}</div>}
         </div>
@@ -1622,18 +1666,19 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-white px-3 py-2.5 sm:px-5">
           <div><h2 className="text-sm font-bold text-slate-900">Podgląd dokumentu</h2><p className="text-[10px] text-slate-500">{mode === 'form' && canEdit ? 'Kliknij tekst lub komórkę tabeli, aby edytować bezpośrednio na stronie.' : 'Podgląd gotowego dokumentu'}</p></div>
           <div className="flex flex-wrap gap-2">
-            {mode === 'form' && canEdit && form.documentContentHtml && <button type="button" onClick={() => { if (window.confirm('Przywrócić dokument z danych formularza? Ręczne poprawki na podglądzie zostaną zastąpione.')) setForm((current) => ({ ...current, documentContentHtml: undefined, documentContentUpdatedAt: undefined })); }} className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold"><RotateCcw size={14}/> Odtwórz z formularza</button>}
+            {mode === 'form' && canEdit && form.documentContentHtml && <button type="button" disabled={templateLoading} onClick={() => { if (window.confirm('Odświeżyć dokument z danych formularza? Ręczne poprawki na podglądzie zostaną zastąpione.')) setForm((current) => ({ ...current, documentContentHtml: undefined, documentContentUpdatedAt: undefined })); }} className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50"><RotateCcw size={14}/> Odśwież z formularza</button>}
             <button type="button" onClick={openReview} className="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold"><Eye size={14}/> Sprawdź i drukuj</button>
           </div>
         </div>
+        {manualPreviewNeedsRefresh && mode === 'form' && <div className="mx-3 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 sm:mx-5">Podgląd zawiera ręcznie edytowaną treść. Późniejsze zmiany w formularzu nie są do niej automatycznie dopisywane. Użyj przycisku „Odśwież z formularza”, aby ponownie wygenerować dokument — ręczne poprawki zostaną zastąpione.</div>}
         <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5">
           <article className="document-print-target mx-auto min-h-[700px] w-full max-w-[850px] bg-white p-6 text-slate-900 shadow-md sm:p-10 print:min-h-0 print:max-w-none print:p-0 print:shadow-none">
             {previewEmpty ? <p className="text-sm text-slate-400">Treść dokumentu jest pusta.</p> : <div
               className="document-live-preview text-[10px] leading-[1.2] [&_h1]:my-1 [&_h1]:text-[15px] [&_h1]:font-bold [&_h2]:my-1 [&_h2]:border-l-2 [&_h2]:border-blue-800 [&_h2]:bg-slate-100 [&_h2]:px-2 [&_h2]:py-0.5 [&_h2]:text-[11px] [&_h2]:font-bold [&_h3]:my-1 [&_h3]:text-[10px] [&_h3]:font-bold [&_p]:my-0.5 [&_table]:my-1 [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:p-1 [&_th]:border [&_th]:border-slate-300 [&_th]:p-1"
-              contentEditable={mode === 'form' && canEdit && !review}
+              contentEditable={mode === 'form' && canEdit && !review && !templateLoading}
               suppressContentEditableWarning
               onBlur={(event) => {
-                if (mode !== 'form' || !canEdit) return;
+                if (mode !== 'form' || !canEdit || templateLoading) return;
                 const nextHtml = sanitizeHtml(event.currentTarget.innerHTML);
                 setForm((current) => ({ ...current, documentContentHtml: nextHtml, documentContentUpdatedAt: new Date().toISOString() }));
               }}
