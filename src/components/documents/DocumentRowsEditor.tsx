@@ -41,7 +41,9 @@ export const DocumentRowsEditor: React.FC<Props> = ({
       <div className="space-y-2">
         {value.map((row, index) => (
           <div key={row.id} className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_76px_auto]">
+            <div className={kind === 'small-element'
+              ? 'grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_72px_88px_auto]'
+              : 'grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_76px_auto]'}>
               <label className="min-w-0 space-y-1 text-[11px] font-medium text-slate-500">
                 Nazwa elementu
                 <input className={inputClass} value={row.type} disabled={disabled} onChange={(event) => update(index, { type: event.target.value, category: kind === 'door' ? event.target.value : row.category })} placeholder="Wpisz lub wybierz element" list={suggestions.length ? listId : undefined}/>
