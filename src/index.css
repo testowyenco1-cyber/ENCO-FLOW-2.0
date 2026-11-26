@@ -207,3 +207,45 @@ body {
 
 header.bg-slate-900.text-white { color: #172b4d; }
 header nav.bg-slate-900 { color: #172b4d; }
+
+
+/* Korekta kontrastu jasnego motywu: czytelne teksty i wyraźne granice elementów. */
+.bg-slate-950,
+.bg-slate-900,
+.bg-slate-800,
+.bg-slate-700 {
+  color: #1e293b;
+}
+
+.bg-slate-950.text-white,
+.bg-slate-900.text-white,
+.bg-slate-800.text-white,
+.bg-slate-700.text-white {
+  color: #1e293b !important;
+}
+
+.border-slate-950,
+.border-slate-900,
+.border-slate-800,
+.border-slate-700,
+.border-slate-600,
+.border-slate-500 {
+  border-color: #c5d0de !important;
+}
+
+.divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #d1dae5 !important;
+}
+
+input,
+select,
+textarea {
+  color: #1e293b;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
