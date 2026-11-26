@@ -68,6 +68,7 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
       <Section number="04" title="Kolory i elewacja">
         <div className="grid grid-cols-2 gap-3">{field('kolorObudowy', 'Kolor obudowy (RAL)')}{field('kolorSlusarki', 'Kolor ślusarki (RAL)')}{field('kolorDachu', 'Kolor dachu (RAL)')}{field('kolorDrzwiKraty', 'Kolor drzwi i krat (RAL)')}</div>
         <div className="grid grid-cols-2 gap-3">{field('tynk', 'Tynk / wykończenie')}{field('tynkStruktura', 'Struktura tynku', { placeholder: 'Np. baranek, gładki' })}{field('antygraffiti', 'Powłoka antygraffiti')}</div>
+        {field('opisyDodatkowe', 'Dodatkowe opisy / wymagania wykonawcze', { multiline: true })}
       </Section>
 
       <Section number="05" title="Przepusty kablowe i otwory">
