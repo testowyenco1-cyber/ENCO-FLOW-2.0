@@ -128,10 +128,11 @@ test('small elements merge legacy extras into one categorized list with quantiti
       'Kieszeń na schemat',
       'Otwór do anteny',
       'Siatka wygradzająca na dachu — 2 szt.',
+      '3x HEA',
     ],
   });
 
-  assert.equal(rows.length, 4);
+  assert.equal(rows.length, 5);
   assert.equal(rows[0].quantity, '3');
   assert.equal(rows[0].category, 'Konstrukcja / mocowanie');
   assert.equal(rows[1].category, 'Wnętrze stacji');
@@ -140,6 +141,9 @@ test('small elements merge legacy extras into one categorized list with quantiti
   assert.equal(rows[3].type, 'Siatka wygradzająca na dachu');
   assert.equal(rows[3].quantity, '2');
   assert.equal(rows[3].unit, 'szt.');
+  assert.equal(rows[4].type, 'HEA');
+  assert.equal(rows[4].quantity, '3');
+  assert.equal(rows[4].category, 'Konstrukcja / mocowanie');
 });
 
 test('document generator and legacy array tokens render structured tables', () => {
