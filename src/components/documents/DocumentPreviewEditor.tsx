@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { sanitizeDocumentHtml } from './documentModel';
+import { sanitizeDocumentHtml } from './DocumentTemplateService';
 
 type Props = {
   html: string;
