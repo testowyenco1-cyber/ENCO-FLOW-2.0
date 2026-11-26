@@ -591,14 +591,15 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
       showToast(`Profil „${currentProfile.name}” nie posiada uprawnień do edycji drzwi`, 'warning');
       return;
     }
-    const exists = doorOrders.some((d) => d.id === savedDoorOrder.id);
+    const currentDoorOrders = doorOrdersRef.current;
+    const exists = currentDoorOrders.some((d) => d.id === savedDoorOrder.id);
     let updated: DoorOrder[];
     if (exists) {
-      updated = doorOrders.map((d) => (d.id === savedDoorOrder.id ? savedDoorOrder : d));
-      showToast(`Zaktualizowano zamówienie drzwi: ${savedDoorOrder.numerDokumentu}`, 'success');
+      updated = currentDoorOrders.map((d) => (d.id === savedDoorOrder.id ? savedDoorOrder : d));
+      showToast(`Zmiany w zamówieniu drzwi ${savedDoorOrder.numerDokumentu} zatwierdzono lokalnie. Aby wysłać je na serwer, kliknij „Zapisz zmiany” w lewym panelu.`, 'info');
     } else {
-      updated = [savedDoorOrder, ...doorOrders];
-      showToast(`Dodano nowe zamówienie drzwi: ${savedDoorOrder.numerDokumentu}`, 'success');
+      updated = [savedDoorOrder, ...currentDoorOrders];
+      showToast(`Dodano zamówienie drzwi ${savedDoorOrder.numerDokumentu} lokalnie. Aby wysłać je na serwer, kliknij „Zapisz zmiany” w lewym panelu.`, 'info');
       // Nowe zamówienie drzwi od razu otwiera własną podstronę.
       navigate(`/drzwi/${encodeURIComponent(savedDoorOrder.id)}`);
     }
@@ -623,10 +624,10 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
       showToast(`Profil „${currentProfile.name}” nie posiada uprawnień do usuwania drzwi`, 'warning');
       return;
     }
-    const toDelete = doorOrders.find((d) => d.id === doorOrderId);
-    const updated = doorOrders.filter((d) => d.id !== doorOrderId);
+    const toDelete = doorOrdersRef.current.find((d) => d.id === doorOrderId);
+    const updated = doorOrdersRef.current.filter((d) => d.id !== doorOrderId);
     updateDoorOrdersState(updated);
-    showToast(`Usunięto zamówienie drzwi ${toDelete?.numerDokumentu || ''}`, 'info');
+    showToast(`Usunięto lokalnie zamówienie drzwi ${toDelete?.numerDokumentu || ''}. Aby zatwierdzić zmianę na serwerze, kliknij „Zapisz zmiany” w lewym panelu.`, 'info');
   };
 
   const handleQuickConfirmDelivery = (doorOrder: DoorOrder) => {
