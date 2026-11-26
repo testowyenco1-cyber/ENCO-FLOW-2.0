@@ -12,6 +12,12 @@ export interface DocumentRow {
   sealType?: string;
   sealVariant?: string;
   notes?: string;
+  category?: string;
+  wings?: string;
+  openingSide?: string;
+  ventilationGrille?: boolean;
+  intakeFan?: boolean;
+  exhaustFan?: boolean;
   [key: string]: unknown;
 }
 
@@ -185,7 +191,7 @@ const sourceRows = (order: Order, type: string): DocumentRow[] => {
   }
   const name = firstText(details.typ, details.rodzaj, details.kategoria, details.nazwa, details.opis);
   if (!name) return [];
-  const defaultDimensions = isBek && /trafo|transformator/i.test(name)
+  const defaultDimensions: { width?: string; height?: string } = isBek && /trafo|transformator/i.test(name)
     ? { width: '1170', height: '2100' }
     : isBek && /drzwi (sn|nn)|drzwi sn i nn/i.test(name)
       ? { width: '950', height: '2100' }
