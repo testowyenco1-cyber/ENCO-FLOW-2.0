@@ -1,6 +1,14 @@
 import type { Order } from '../../types/enco';
 import type { EnclosureDocumentData, DocumentRow } from './documentModel';
 
+const asText = (value: unknown): string => {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'boolean') return value ? 'Tak' : 'Nie';
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(', ');
+  if (typeof value === 'object') return '';
+  return String(value).trim();
+};
+
 export const escapeHtml = (value: unknown): string => String(value ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -94,10 +102,10 @@ export const sanitizeDocumentHtml = (html: string): string => {
   const source = String(html || '').slice(0, 500000);
   if (typeof DOMParser === 'undefined') {
     return source
-      .replace(/<\\s*(script|style|iframe|object|embed|svg|math|form)\\b[^>]*>[\\s\\S]*?<\\/\\s*\\1\\s*>/gi, '')
-      .replace(/<\\s*(script|style|iframe|object|embed|svg|math|form)\\b[^>]*\\/?>/gi, '')
-      .replace(/\\s+on[a-z]+\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)/gi, '')
-      .replace(/\\s+(href|src)\\s*=\\s*("|')\\s*(javascript|data):[\\s\\S]*?\\2/gi, '');
+      .replace(/<\s*(script|style|iframe|object|embed|svg|math|form)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+      .replace(/<\s*(script|style|iframe|object|embed|svg|math|form)\b[^>]*\/?>/gi, '')
+      .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/\s+(href|src)\s*=\s*("|')\s*(javascript|data):[\s\S]*?\2/gi, '');
   }
 
   const parsed = new DOMParser().parseFromString(source, 'text/html');
@@ -128,7 +136,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
     if (!allowedTags.has(element.tagName)) return children;
 
     let attributes = '';
-    const classNames = (element.getAttribute('class') || '').split(/\\s+/).filter((name) => allowedClasses.has(name));
+    const classNames = (element.getAttribute('class') || '').split(/\s+/).filter((name) => allowedClasses.has(name));
     if (classNames.length) attributes += ' class="' + escapeHtml(classNames.join(' ')) + '"';
 
     const style = element.getAttribute('style');
@@ -138,7 +146,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
         if (colon < 0) return false;
         const name = entry.slice(0, colon).trim().toLowerCase();
         const value = entry.slice(colon + 1).trim();
-        return allowedStyles.has(name) && !/url\\s*\\(|expression|javascript:|behavior\\s*:/i.test(value);
+        return allowedStyles.has(name) && !/url\s*\(|expression|javascript:|behavior\s*:/i.test(value);
       }).join('; ');
       if (safeStyle) attributes += ' style="' + escapeHtml(safeStyle) + '"';
     }
@@ -146,7 +154,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
     if (['TD', 'TH'].includes(element.tagName)) {
       for (const attribute of ['colspan', 'rowspan']) {
         const raw = element.getAttribute(attribute);
-        if (raw && /^\\d{1,2}$/.test(raw)) attributes += ' ' + attribute + '="' + raw + '"';
+        if (raw && /^\d{1,2}$/.test(raw)) attributes += ' ' + attribute + '="' + raw + '"';
       }
     }
     return '<' + element.tagName.toLowerCase() + attributes + '>' + children + '</' + element.tagName.toLowerCase() + '>';
