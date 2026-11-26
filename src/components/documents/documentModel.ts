@@ -166,18 +166,31 @@ const sourceRows = (order: Order, type: string): DocumentRow[] => {
   const related = order.items.find((candidate) => candidate.type === type);
   const details = related?.details || {};
   const rows = details.documentRows || details.pozycje || details.elementy;
-  if (rows) return normalizeDocumentRows(rows, type.toLowerCase());
-  const name = firstText(details.typ, details.rodzaj, details.kategoria, details.nazwa, details.opis);
-  if (!name) return [];
   const enclosure = order.items.find((candidate) => candidate.type === 'OBUDOWA')?.details || {};
   const station = firstText(enclosure.typObudowy, enclosure.rozmiar, order.stationSize);
   const isBek = /^BEK\b/i.test(station);
+  const normalizeDoorDimensions = (sourceRows: DocumentRow[]) => sourceRows.map((row) => {
+    if (type !== 'DRZWI' || !isBek) return row;
+    const isTransformerDoor = /trafo|transformator/i.test(row.type);
+    const isStandardDoor = /drzwi (sn|nn)|drzwi sn i nn/i.test(row.type);
+    return {
+      ...row,
+      width: row.width || (isTransformerDoor ? '1170' : isStandardDoor ? '950' : ''),
+      height: row.height || ((isTransformerDoor || isStandardDoor) ? '2100' : ''),
+      category: row.category || row.type,
+    };
+  });
+  if (rows && (!Array.isArray(rows) || rows.length > 0)) {
+    return normalizeDoorDimensions(normalizeDocumentRows(rows, type.toLowerCase()));
+  }
+  const name = firstText(details.typ, details.rodzaj, details.kategoria, details.nazwa, details.opis);
+  if (!name) return [];
   const defaultDimensions = isBek && /trafo|transformator/i.test(name)
     ? { width: '1170', height: '2100' }
     : isBek && /drzwi (sn|nn)|drzwi sn i nn/i.test(name)
       ? { width: '950', height: '2100' }
       : {};
-  return [makeRow(type.toLowerCase(), 0, {
+  return normalizeDoorDimensions([makeRow(type.toLowerCase(), 0, {
     type: name,
     category: name,
     quantity: firstText(details.ilosc, '1'),
@@ -189,7 +202,7 @@ const sourceRows = (order: Order, type: string): DocumentRow[] => {
     ventilationGrille: Boolean(details.krataWentylacyjna),
     intakeFan: Boolean(details.wentylatorNawiewny),
     exhaustFan: Boolean(details.wentylatorWyciagowy),
-  })];
+  })]);
 };
 
 const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
