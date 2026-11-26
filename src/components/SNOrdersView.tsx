@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CircuitBoard, Search, Plus, Save, Trash2, RefreshCw, ExternalLink, PackageCheck, Truck, Warehouse, ArrowUpDown, ChevronUp, ChevronDown, Copy, Download } from 'lucide-react';
+import { CircuitBoard, Search, Plus, Trash2, RefreshCw, ExternalLink, PackageCheck, Truck, Warehouse, ArrowUpDown, ChevronUp, ChevronDown, Copy, Download } from 'lucide-react';
 import { Order } from '../types/enco';
 import { UserRoleProfile, USER_PROFILES, canEditItemType } from '../types/userRole';
 
 type SNType = 'SIEMENS' | 'XIRIA' | 'RM_AIRSET' | 'RM_AIRSET_STOEN';
 type SNCategory = 'DELIVERED' | 'TO_DELIVER' | 'WAREHOUSE';
-interface SNRecord {
+export interface SNRecord {
   id: string;
   type: SNType;
   category: SNCategory;
@@ -18,10 +18,19 @@ interface SNRecord {
   linkedOrderId?: string;
   lokalizacja: string;
 }
+
+export interface SNPendingChanges {
+  records: SNRecord[];
+  deletedIds: string[];
+}
+
 interface Props {
   orders: Order[];
   currentProfile?: UserRoleProfile;
   onNavigateToOrder: (orderId: string) => void;
+  pendingChanges: SNPendingChanges | null;
+  refreshToken: number;
+  onPendingChangesChange: (changes: SNPendingChanges | null) => void;
 }
 const TYPES: { key: SNType; label: string }[] = [
   { key: 'SIEMENS', label: 'SIEMENS' },
@@ -80,7 +89,7 @@ const AIRSET_STOEN_RODZAJE = [
 type SortKey = 'rodzaj' | 'ilosc' | 'terminDostawy' | 'nrZamowienia' | 'projekt' | 'lokalizacja';
 const makeId = () => `sn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNavigateToOrder }) => {
+export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNavigateToOrder, pendingChanges, refreshToken, onPendingChangesChange }) => {
   const [records, setRecords] = useState<SNRecord[]>([]);
   // Last server-confirmed version: send only changed rows to avoid overwriting edits from other users.
   const [serverSnapshot, setServerSnapshot] = useState<SNRecord[]>([]);
@@ -95,7 +104,6 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
   const [activeProjectSuggestionsFor, setActiveProjectSuggestionsFor] = useState<string | null>(null);
   const [newRodzaj, setNewRodzaj] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const profile = currentProfile || USER_PROFILES.admin;
@@ -109,9 +117,15 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
       if (!response.ok) throw new Error('Nie udało się pobrać zestawienia SN z serwera.');
       const data = await response.json();
       if (!data.success || !Array.isArray(data.records)) throw new Error(data.error || 'Nieprawidłowe dane zestawienia SN.');
-      setRecords(data.records);
-      setServerSnapshot(data.records);
-      setDeletedIds([]);
+      const serverRecords = data.records as SNRecord[];
+      const deleted = new Set(pendingChanges?.deletedIds || []);
+      const restoredRecords = new Map<string, SNRecord>(
+        serverRecords.filter((record: SNRecord) => !deleted.has(record.id)).map((record: SNRecord) => [record.id, record])
+      );
+      (pendingChanges?.records || []).forEach((record) => restoredRecords.set(record.id, record));
+      setRecords(Array.from(restoredRecords.values()));
+      setServerSnapshot(serverRecords);
+      setDeletedIds(pendingChanges?.deletedIds || []);
       setNotice('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Błąd pobierania zestawienia SN.');
@@ -120,7 +134,19 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
     }
   };
 
-  useEffect(() => { void loadRecords(); }, []);
+  useEffect(() => { void loadRecords(); }, [refreshToken]);
+
+  useEffect(() => {
+    if (loading) return;
+    const changedRecords = records.filter(record => {
+      const previous = serverSnapshot.find(saved => saved.id === record.id);
+      return !previous || JSON.stringify(previous) !== JSON.stringify(record);
+    });
+    const changes = changedRecords.length || deletedIds.length
+      ? { records: changedRecords, deletedIds }
+      : null;
+    onPendingChangesChange(changes);
+  }, [records, serverSnapshot, deletedIds, loading, onPendingChangesChange]);
 
   const visibleRecords = useMemo(() => records.filter(record => {
     if (record.type !== selectedType || (selectedCategory !== 'ALL' && record.category !== selectedCategory)) return false;
@@ -184,13 +210,12 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
   };
 
   const patchRecord = (id: string, patch: Partial<SNRecord>) => {
-    if (saving) return;
     setRecords(current => current.map(record => record.id === id ? { ...record, ...patch } : record));
     setNotice('');
   };
 
   const addRecord = () => {
-    if (!canEdit || saving) return;
+    if (!canEdit) return;
     const record: SNRecord = {
       id: makeId(), type: selectedType, category: 'TO_DELIVER', rodzaj: '', ilosc: 1,
       terminDostawy: '',
@@ -201,7 +226,7 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
   };
 
   const duplicateRecord = (id: string) => {
-    if (!canEdit || saving) return;
+    if (!canEdit) return;
     const source = records.find(record => record.id === id);
     if (!source) return;
     const copy: SNRecord = { ...source, id: makeId() };
@@ -210,42 +235,14 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
       if (index < 0) return [...current, copy];
       return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)];
     });
-    setNotice('Skopiowano pozycję. Pamiętaj, aby zapisać zestawienie.');
+    setNotice('Skopiowano pozycję. Zmiana zostanie wysłana przyciskiem „Zapisz zmiany” w lewym panelu.');
   };
 
   const removeRecord = (id: string) => {
-    if (!canEdit || saving) return;
+    if (!canEdit) return;
     setRecords(current => current.filter(record => record.id !== id));
     setDeletedIds(current => current.includes(id) ? current : [...current, id]);
     setNotice('');
-  };
-
-  const saveRecords = async () => {
-    setSaving(true);
-    setError('');
-    setNotice('');
-    try {
-      const changedRecords = records.filter(record => {
-        const previous = serverSnapshot.find(saved => saved.id === record.id);
-        return !previous || JSON.stringify(previous) !== JSON.stringify(record);
-      });
-      const response = await fetch('/api/sn-switchgear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ records: changedRecords, deletedIds }),
-      });
-      if (!response.ok) throw new Error('Nie udało się zapisać zestawienia SN.');
-      const data = await response.json();
-      if (!data.success || !Array.isArray(data.records)) throw new Error(data.error || 'Błąd zapisu zestawienia SN.');
-      setRecords(data.records);
-      setServerSnapshot(data.records);
-      setDeletedIds([]);
-      setNotice('Zestawienie rozdzielnic SN zapisano na serwerze.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Błąd zapisu zestawienia SN.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const exportSNToExcel = () => {
@@ -300,8 +297,7 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
       <div className="flex flex-wrap gap-2">
         <div className="relative min-w-[220px] flex-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Szukaj rodzaju, zamówienia, projektu..." className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-xs" /></div>
         <button type="button" onClick={exportSNToExcel} disabled={loading} title="Eksportuj widoczne pozycje do pliku otwieranego w Excelu" className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Eksport Excel</button>
-         <button type="button" onClick={() => void loadRecords()} disabled={loading || saving} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" /> Odśwież</button>
-        {canEdit && <button type="button" onClick={() => void saveRecords()} disabled={saving || loading} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"><Save className="h-3.5 w-3.5" />{saving ? 'Zapisywanie…' : 'Zapisz zestawienie'}</button>}
+         <button type="button" onClick={() => void loadRecords()} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" /> Odśwież</button>
       </div>
     </div>
 
@@ -325,7 +321,7 @@ export const SNOrdersView: React.FC<Props> = ({ orders, currentProfile, onNaviga
 
     <div className={`overflow-hidden rounded-xl border border-slate-200 bg-white ${saving ? 'pointer-events-none opacity-70' : ''}`}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-        <div><h2 className="text-sm font-bold text-slate-900">{TYPES.find(type => type.key === selectedType)?.label} · {selectedCategory === 'ALL' ? 'Wszystkie' : CATEGORIES.find(category => category.key === selectedCategory)?.label}</h2><p className="mt-0.5 text-xs text-slate-500">Pozycje: {visibleRecords.length}. Zmiany należy zapisać przyciskiem „Zapisz zestawienie”.</p></div>
+        <div><h2 className="text-sm font-bold text-slate-900">{TYPES.find(type => type.key === selectedType)?.label} · {selectedCategory === 'ALL' ? 'Wszystkie' : CATEGORIES.find(category => category.key === selectedCategory)?.label}</h2><p className="mt-0.5 text-xs text-slate-500">Pozycje: {visibleRecords.length}. Wszystkie zmiany wyślesz przyciskiem „Zapisz zmiany” w lewym panelu.</p></div>
         {canEdit && <button type="button" onClick={addRecord} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"><Plus className="h-3.5 w-3.5" /> Dodaj pozycję</button>}
       </div>
       {loading ? <div className="p-10 text-center text-sm text-slate-500">Pobieranie zestawienia…</div> : visibleRecords.length === 0 ? <div className="p-10 text-center text-sm text-slate-500">Brak pozycji w tej sekcji. Możesz dodać pierwszą pozycję przyciskiem powyżej.</div> : <div className="w-full min-w-0">
