@@ -14,7 +14,7 @@ export const DocumentPreviewEditor: React.FC<Props> = ({ html, resetToken, edita
   useEffect(() => {
     if (!contentRef.current) return;
     contentRef.current.innerHTML = sanitizeDocumentHtml(html);
-  }, [html, resetToken]);
+  }, [resetToken]);
 
   const handleBlur = () => {
     if (!contentRef.current || !editable) return;
