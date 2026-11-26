@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { getDepartureDateUrgency, type Order, type OrderItem } from '../src/types/enco';
 import {
   createEnclosureDocumentData,
+  getSmallElementRows,
   type EnclosureDocumentData,
 } from '../src/components/documents/documentModel';
 import {
@@ -117,6 +118,30 @@ test('dedicated DRZWI position takes priority, with OBUDOWA rows as legacy fallb
   assert.equal(withoutDedicated.slusarka[0]?.type, 'Drzwi SN');
 });
 
+test('small elements merge legacy extras into one categorized list with quantities', () => {
+  const rows = getSmallElementRows({
+    drobneElementy: [
+      { id: 'hea-1', type: 'Profil stalowy HEA', quantity: '3', unit: 'szt.', position: 'Ściana od strony SN' },
+      { id: 'pocket-1', type: 'Kieszeń na schemat', quantity: '2', unit: 'szt.', position: 'Przy drzwiach' },
+    ],
+    dodatkoweWyposazenie: [
+      'Kieszeń na schemat',
+      'Otwór do anteny',
+      'Siatka wygradzająca na dachu — 2 szt.',
+    ],
+  });
+
+  assert.equal(rows.length, 4);
+  assert.equal(rows[0].quantity, '3');
+  assert.equal(rows[0].category, 'Konstrukcja / mocowanie');
+  assert.equal(rows[1].category, 'Wnętrze stacji');
+  assert.equal(rows[2].type, 'Otwór do anteny');
+  assert.equal(rows[2].quantity, '1');
+  assert.equal(rows[3].type, 'Siatka wygradzająca na dachu');
+  assert.equal(rows[3].quantity, '2');
+  assert.equal(rows[3].unit, 'szt.');
+});
+
 test('document generator and legacy array tokens render structured tables', () => {
   const order = makeOrder([legacyEnclosure]);
   const data = createEnclosureDocumentData(order);
@@ -124,12 +149,15 @@ test('document generator and legacy array tokens render structured tables', () =
   assert.match(localHtml, /ZLECENIE OBUDOWY/);
   assert.match(localHtml, /Most SN z głowicami/);
   assert.match(localHtml, /Zaciski krzyżowe/);
+  assert.match(localHtml, /Grupa/);
+  assert.match(localHtml, /Otwór do anteny/);
+  assert.match(localHtml, /2 szt\./);
 
   const template: VersionedDocumentTemplate = {
     key: 'zlecenie-obudowy',
     title: 'Test template',
     version: 3,
-    contentHtml: '<div><h1>{{derived.title}}</h1><p>{{form.numerZD}}</p><div>{{form.slusarka}}</div><div>{{form.dostawaWarszawa}}</div><div>{{derived.openings}}</div></div><script>alert(1)</script>',
+    contentHtml: '<div><h1>{{derived.title}}</h1><p>{{form.numerZD}}</p><div>{{form.slusarka}}</div><div>{{form.dostawaWarszawa}}</div><div>{{derived.smallElements}}</div><div>{{derived.openings}}</div></div><script>alert(1)</script>',
     sections: [],
     fields: [],
     rules: [],
@@ -138,6 +166,8 @@ test('document generator and legacy array tokens render structured tables', () =
   assert.match(rendered, /<table>/);
   assert.match(rendered, /Drzwi SN/);
   assert.match(rendered, /Most SN z głowicami/);
+  assert.match(rendered, /Siatka wygradzająca na dachu/);
+  assert.match(rendered, /Grupa/);
   assert.doesNotMatch(rendered, /<script/i);
   assert.doesNotMatch(rendered, /\{\{form\./);
 });
