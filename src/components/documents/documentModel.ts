@@ -116,34 +116,49 @@ export const normalizeDocumentRows = (value: unknown, prefix: string): DocumentR
   return rows.map((row, index) => makeRow(prefix, index, row));
 };
 
-const summarizeDetails = (details: Record<string, unknown> | undefined): string => {
-  if (!details) return '';
-  const preferred = [
-    'producent', 'model', 'typ', 'rodzaj', 'moc', 'iloscPol', 'liczbaPol',
-    'konfiguracja', 'nazwa', 'opis', 'specyfikacja', 'parametry', 'uwagi',
-    'nrSeryjny', 'numerSeryjny', 'seryjny', 'wyposazenie',
-  ];
-  const values = preferred
-    .map((key) => {
-      const value = details[key];
-      const text = asText(value);
-      return text ? text : '';
-    })
-    .filter(Boolean);
-  if (values.length) return Array.from(new Set(values)).join(' · ');
-
-  const ignored = new Set(['formularze', 'attachments', 'files', 'history', 'createdAt', 'updatedAt']);
-  return Object.entries(details)
-    .filter(([key, value]) => !ignored.has(key) && !key.startsWith('__') && (typeof value === 'string' || typeof value === 'number'))
-    .map(([key, value]) => `${key}: ${String(value)}`)
-    .filter(Boolean)
-    .slice(0, 8)
-    .join(' · ');
+const sourceSummary = (...parts: unknown[]): string => parts.map(asText).filter(Boolean).join(' · ');
+const labelledSource = (label: string, value: unknown): string => {
+  const text = asText(value);
+  return text ? label + ': ' + text : '';
 };
 
 const relatedSummary = (order: Order, type: string): string => {
   const related = order.items.find((candidate) => candidate.type === type);
-  return summarizeDetails(related?.details);
+  const enclosure = order.items.find((candidate) => candidate.type === 'OBUDOWA')?.details || {};
+  if (!related) {
+    if (type === 'OPISY') return sourceSummary(labelledSource('Wymagane opisy', enclosure.wymaganeOpisy), labelledSource('Sposób wykonania', enclosure.sposobWykonania));
+    if (type === 'DODATKOWE') return asText(enclosure.inneUrzadzenia);
+    return '';
+  }
+  const d = related.details || {};
+  switch (type) {
+    case 'ROZDZIELNICA_SN': {
+      const count = firstText(d.liczbaPol, d.iloscPol);
+      return sourceSummary(d.producent, firstText(d.model, d.typRozdzielnicy), count ? count + ' pól' : '', labelledSource('Konfiguracja pól', d.konfiguracjaPol), d.parametryTechniczne) || asText(related.notes);
+    }
+    case 'ROZDZIELNICA_NN': {
+      const count = firstText(d.iloscPol, d.liczbaPol);
+      return sourceSummary(firstText(d.typRozdzielnicy, d.typ), count ? count + ' pól' : '', firstText(d.wyposazenieDodatkowe, d.wyposazenie, d.konfiguracja)) || asText(related.notes);
+    }
+    case 'OPISY':
+      return sourceSummary(labelledSource('Wymagane opisy', d.wymaganeOpisy), labelledSource('Sposób wykonania', d.sposobWykonania)) || asText(related.notes);
+    case 'SZAFKA_TELEMECHANIKI':
+      return sourceSummary(labelledSource('RTU', firstText(d.typ, d.typSterownika)), labelledSource('Wyposażenie', d.wyposazenie), labelledSource('Zakres', d.zakres), labelledSource('Informacje techniczne', d.informacjeTechniczne), labelledSource('Sensory napięciowe', d.sensoryNapieciowe)) || asText(related.notes);
+    case 'TRANSFORMATOR': {
+      const power = firstText(d.mocKVA, d.moc);
+      const powerLabel = power ? (/kva$/i.test(power) ? power : power + ' kVA') : '';
+      return sourceSummary(labelledSource('Producent', d.producent), labelledSource('Typ / model', d.typ), labelledSource('Moc znamionowa', powerLabel), labelledSource('Numer seryjny', firstText(d.numerSeryjny, d.nrSeryjny))) || asText(related.notes);
+    }
+    case 'TRANSFORMATOR_POTRZEB_WLASNYCH': {
+      const power = firstText(d.va, d.mocVA);
+      const powerLabel = power ? (/va$/i.test(power) ? power : power + ' VA') : '';
+      return sourceSummary(labelledSource('Moc znamionowa transformatora potrzeb własnych', powerLabel), labelledSource('Numer seryjny', firstText(d.numerSeryjny, d.nrSeryjny))) || asText(related.notes);
+    }
+    case 'DODATKOWE':
+      return sourceSummary(labelledSource('Opis', firstText(d.opis, related.notes)), labelledSource('Specyfikacja', d.specyfikacja)) || asText(related.notes);
+    default:
+      return sourceSummary(d.producent, d.model, d.typ, d.rodzaj, d.opis, d.specyfikacja, related.notes);
+  }
 };
 
 const sourceRows = (order: Order, type: string): DocumentRow[] => {
@@ -151,12 +166,28 @@ const sourceRows = (order: Order, type: string): DocumentRow[] => {
   const details = related?.details || {};
   const rows = details.documentRows || details.pozycje || details.elementy;
   if (rows) return normalizeDocumentRows(rows, type.toLowerCase());
-  const name = firstText(details.typ, details.rodzaj, details.nazwa, details.opis);
+  const name = firstText(details.typ, details.rodzaj, details.kategoria, details.nazwa, details.opis);
   if (!name) return [];
+  const enclosure = order.items.find((candidate) => candidate.type === 'OBUDOWA')?.details || {};
+  const station = firstText(enclosure.typObudowy, enclosure.rozmiar, order.stationSize);
+  const isBek = /^BEK\b/i.test(station);
+  const defaultDimensions = isBek && /trafo|transformator/i.test(name)
+    ? { width: '1170', height: '2100' }
+    : isBek && /drzwi (sn|nn)|drzwi sn i nn/i.test(name)
+      ? { width: '950', height: '2100' }
+      : {};
   return [makeRow(type.toLowerCase(), 0, {
     type: name,
+    category: name,
     quantity: firstText(details.ilosc, '1'),
-    position: firstText(details.lokalizacja, details.uwagi),
+    position: [firstText(details.lokalizacja), firstText(details.dodatkoweWyposazenie), firstText(details.uwagi)].filter(Boolean).join(' — '),
+    width: firstText(details.szerokosc, defaultDimensions.width),
+    height: firstText(details.wysokosc, defaultDimensions.height),
+    wings: firstText(details.skrzydla, details.liczbaSkrzydel),
+    openingSide: firstText(details.stronaOtwierania),
+    ventilationGrille: Boolean(details.krataWentylacyjna),
+    intakeFan: Boolean(details.wentylatorNawiewny),
+    exhaustFan: Boolean(details.wentylatorWyciagowy),
   })];
 };
 
@@ -167,7 +198,7 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
   const doorDetails = order.items.find((candidate) => candidate.type === 'DRZWI')?.details || {};
   const doorRows = sourceRows(order, 'DRZWI');
   const stationSize = firstText(details.rozmiar, order.stationSize);
-  const stationType = firstText(details.typObudowy, details.typ, stationSize.match(/^(BEK|NZ)\\b/i)?.[1] || '');
+  const stationType = firstText(details.typObudowy, details.typ, stationSize.match(/^(BEK|NZ)\b/i)?.[1] || '');
 
   return {
     typBudowli: firstText(details.typBudowli, 'Stacja transformatorowa'),
@@ -198,19 +229,19 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
     przepusty: normalizeDocumentRows(details.przepusty, 'przepust'),
     otwory: normalizeDocumentRows(details.otwory, 'otwor'),
     kolorObudowy: firstText(colors.kolorObudowy, details.kolorObudowy),
-    kolorSlusarki: firstText(colors.kolorSlusarki, colors.kolorDrzwi, details.kolorSlusarki),
-    kolorDachu: firstText(colors.kolorDachu, colors.koloryDodatkowe, details.kolorDachu),
-    kolorDrzwiKraty: firstText(colors.kolorDrzwiKraty, colors.kolorDrzwi, details.kolorDrzwiKraty),
+    kolorSlusarki: firstText(colors.kolorSlusarki, colors.kolorDrzwi, details.kolorSlusarki, details.kolorDrzwi),
+    kolorDachu: firstText(colors.kolorDachu, colors.koloryDodatkowe, details.kolorDachu, details.koloryDodatkowe),
+    kolorDrzwiKraty: firstText(colors.kolorDrzwiKraty, colors.kolorDrzwi, details.kolorDrzwiKraty, details.kolorDrzwi),
     tynk: firstText(details.tynk, details.wykonczenie, details.materialWykonczenia),
     tynkStruktura: firstText(details.tynkStruktura, details.strukturaTynku),
-    antygraffiti: firstText(details.antygraffitiStatus, details.antygraffiti),
+    antygraffiti: firstText(details.antygraffitiStatus, typeof details.antygraffiti === 'boolean' ? details.antygraffiti : undefined),
     rozdzielnicaSN: relatedSummary(order, 'ROZDZIELNICA_SN'),
     rozdzielnicaNN: relatedSummary(order, 'ROZDZIELNICA_NN'),
     telemechanika: relatedSummary(order, 'SZAFKA_TELEMECHANIKI'),
     transformator: relatedSummary(order, 'TRANSFORMATOR'),
     transformatorPotrzebWlasnych: relatedSummary(order, 'TRANSFORMATOR_POTRZEB_WLASNYCH'),
-    uziemienie: firstText(details.uziemienie, details.typUziemienia, details.instalacjaUziemiajaca),
-    instalacjaOswietleniowa: firstText(details.instalacjaOswietleniowa, details.oswietlenie),
+    uziemienie: firstText(details.uziemienie, details.typUziemienia, details.instalacjaUziemiajaca, details.opisUziemienia, details.sposobUziemienia),
+    instalacjaOswietleniowa: firstText(details.instalacjaOswietleniowa, details.instalacjaOswietlenia, details.oswietlenie, details.oswietlenieWewnetrzneZewnetrzne, details.oswietlenieOpis),
     inneUrzadzenia: relatedSummary(order, 'DODATKOWE') || asText(descriptions.documentSummary),
     dostawaWarszawa: [],
     dostawaPyskowice: [],
