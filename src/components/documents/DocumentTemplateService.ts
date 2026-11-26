@@ -109,7 +109,7 @@ export interface VersionedDocumentTemplate {
   updatedAt?: string;
   updatedBy?: string;
   sections?: unknown[];
-  fields?: unknown[];
+  fields?: Array<{ id?: string; type?: string; valueKey?: string; defaultValue?: unknown; helpText?: string; label?: string }>;
   rules?: unknown[];
 }
 
@@ -239,8 +239,9 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     ].filter((entry) => asText(entry[1])).map(([label, value]) => '<tr><td><strong>' + escapeHtml(label) + '</strong></td><td>' + cell(value) + '</td></tr>').join('') || '<tr><td colspan="2">Nie uzupełniono danych urządzeń.</td></tr>');
   }
   if (path === 'derived.mountingSection') {
-    return paragraph('Wykonawca', data.montazWykonawca) + paragraph('Termin montażu', data.montazTermin) +
+    const details = paragraph('Wykonawca', data.montazWykonawca) + paragraph('Termin montażu', data.montazTermin) +
       paragraph('Odpowiedzialny / jednostka', data.montazOdpowiedzialny) + paragraph('Uwagi montażowe', data.montazUwagi);
+    return details ? '<h2>DOTYCZY WYKONANIA MONTAŻU STACJI</h2>' + details : '';
   }
   return null;
 };
@@ -254,8 +255,15 @@ export const renderVersionedEnclosureTemplate = (
   const rendered = safeTemplate.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match, path: string) => {
     const derived = renderDerivedTemplateToken(path, data, order);
     if (derived !== null) return derived;
-    const value = getTemplatePathValue(path, data, order);
-    if (Array.isArray(value)) return value.map((entry) => escapeHtml(typeof entry === 'object' ? rowDescription(entry as DocumentRow) : asText(entry))).filter(Boolean).join('<br>');
+    const staticField = path.startsWith('form.')
+      ? template.fields?.find((field) => field.type === 'static' && path === 'form.' + field.valueKey)
+      : undefined;
+    if (staticField) return escapeHtml(asText(staticField.defaultValue ?? staticField.helpText ?? staticField.label));
+    let value = getTemplatePathValue(path, data, order);
+    if ((path === 'form.dataWystawienia' || path === 'form.dataZD' || path === 'form.terminRealizacji') && typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(value)) {
+      value = value.slice(8, 10) + '.' + value.slice(5, 7) + '.' + value.slice(0, 4);
+    }
+    if (Array.isArray(value)) return value.map((entry) => entry && typeof entry === 'object' ? escapeHtml(rowDescription(entry as DocumentRow)) : escapeHtml(asText(entry))).filter(Boolean).join('<br>');
     if (value && typeof value === 'object') return escapeHtml(asText(value));
     return escapeHtml(value === undefined || value === null || value === '' ? '—' : asText(value)).replace(/\r\n?|\n/g, '<br>');
   });
