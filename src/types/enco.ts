@@ -698,15 +698,21 @@ export function getDepartureDateUrgency(dateStr: string, isOrderReady: boolean):
     return { status: 'invalid', daysDiff: 0, label: 'Brak terminu' };
   }
 
-  const target = new Date(dateStr);
+  // Daty YYYY-MM-DD interpretujemy lokalnie, aby uniknąć przesunięcia
+  // dnia wynikającego z parsowania daty bez strefy jako UTC.
+  const dateOnly = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const target = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(dateStr);
   if (isNaN(target.getTime())) {
     return { status: 'invalid', daysDiff: 0, label: 'Nieprawidłowa data' };
   }
 
-  // Używamy bieżącej daty systemowej (2026-10-08)
-  const now = new Date('2026-10-08T00:00:00');
+  // Termin porównujemy z początkiem bieżącego dnia w lokalnej strefie serwera/przeglądarki.
+  const currentDate = new Date();
+  const todayMidnight = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
   const targetMidnight = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-  const diffTime = targetMidnight.getTime() - now.getTime();
+  const diffTime = targetMidnight.getTime() - todayMidnight.getTime();
   const daysDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
   if (daysDiff < 0) {
