@@ -1311,7 +1311,7 @@ async function startServer() {
           return res.status(400).json({ success: false, error: 'Słownik SN musi zawierać listę producers oraz obiekt modelsByProducer.' });
         }
         const producers = incoming.producers.map((value: unknown) => typeof value === 'string' ? value.trim() : '').filter((value: string) => value.length > 0);
-        if (producers.length !== incoming.producers.length || producers.some((value: string) => value.length > 120) ||
+      if (!value || value.length > 120 || /[\u000A\u000D\u0009]/.test(value)) {
             new Set(producers.map((value: string) => value.toLocaleLowerCase('pl'))).size !== producers.length) {
           return res.status(400).json({ success: false, error: 'Nazwy producentów muszą być niepuste i unikalne (maks. 120 znaków).' });
         }
