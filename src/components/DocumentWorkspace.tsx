@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Eye, FileText, Printer, RefreshCw } from 'lucide-react';
+import { ArrowLeft, BookOpen, CheckCircle2, Eye, FileText, Printer, RefreshCw } from 'lucide-react';
 import type { Order } from '../types/enco';
 import type { UserRoleProfile } from '../types/userRole';
 import { canEditItemType } from '../types/userRole';
@@ -9,6 +9,8 @@ import { createEnclosureDocumentData, type EnclosureDocumentData } from './docum
 import { buildEnclosureDocumentHtml, fetchEnclosureDocumentTemplate, renderVersionedEnclosureTemplate, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './documents/DocumentTemplateService';
 import { updateOrderWithEnclosureDocument } from './documents/DocumentPersistence';
 import { DocumentTemplateEditorModal } from './documents/DocumentTemplateEditorModal';
+import { DocumentDictionariesManager } from './documents/DocumentDictionariesManager';
+import { DEFAULT_DOCUMENT_DICTIONARIES, fetchDocumentDictionaries, type DocumentDictionaries } from './documents/documentDictionaries';
 
 interface Props {
   order: Order;
@@ -47,8 +49,16 @@ export const DocumentWorkspace: React.FC<Props> = ({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
+  const [dictionariesManagerOpen, setDictionariesManagerOpen] = useState(false);
+  const [dictionaries, setDictionaries] = useState<DocumentDictionaries>(DEFAULT_DOCUMENT_DICTIONARIES);
   const canEdit = canEditItemType(currentProfile, 'OBUDOWA');
   const hasEnclosure = order.items.some((item) => item.type === 'OBUDOWA');
+
+  useEffect(() => {
+    let active = true;
+    void fetchDocumentDictionaries().then((loaded) => { if (active) setDictionaries(loaded); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const next = createEnclosureDocumentData(order);
@@ -152,7 +162,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
     setFormChanged(false);
     previewChangedRef.current = false;
     setPreviewChanged(false);
-    setMessage('Podgląd odtworzono z aktualnych pól i wybranej wersji wzorca. Poprzednia ręczna treść zostanie zastąpiona po zatwierdzeniu dokumentu.');
+    setMessage('Podgląd został ponownie wygenerowany z aktualnych danych formularza. Ręczne zmiany w poprzedniej wersji treści zostały zastąpione.');
   };
 
   const save = async () => {
@@ -198,20 +208,21 @@ export const DocumentWorkspace: React.FC<Props> = ({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="hidden max-w-[340px] text-right text-[11px] text-slate-500 xl:block">{statusText}</span>
+          {canEdit && <button type="button" onClick={() => setDictionariesManagerOpen(true)} title="Dodawaj pozycje do wspólnych list wyboru" className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"><BookOpen size={14}/> Słowniki</button>}
           {currentProfile.id === 'admin' && <button type="button" disabled={templateLoading} onClick={() => setTemplateEditorOpen(true)} title={templateLoading ? 'Trwa wczytywanie wzorca' : 'Edytuj wspólny wzorzec dla nowych dokumentów'} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-wait disabled:opacity-50"><FileText size={14}/> {templateLoading ? 'Wczytywanie wzorca…' : 'Edytuj wzorzec'}</button>}
           <button type="button" disabled={!canDownload} onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Printer size={14}/> Drukuj / PDF</button>
-          {canEdit && <button type="button" disabled={!previewChanged} onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw size={14}/> Odśwież podgląd</button>}
+          {canEdit && <button type="button" onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"><RefreshCw size={14}/> Odśwież podgląd</button>}
           {canEdit && <button type="button" disabled={saving || !hasEnclosure} onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 size={15}/> Zatwierdź dokument</button>}
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(220px,42%)_minmax(0,1fr)] overflow-hidden xl:grid-cols-[minmax(360px,440px)_minmax(0,1fr)] xl:grid-rows-1">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(220px,42%)_minmax(0,1fr)] overflow-hidden xl:grid-cols-[minmax(500px,42%)_minmax(0,1fr)] xl:grid-rows-1">
         <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-slate-50 p-3 md:p-4 xl:border-b-0 xl:border-r">
           <div className="mb-3 flex items-center justify-between">
             <div><h2 className="text-sm font-bold text-slate-800">Formularz dokumentu</h2><p className="mt-0.5 text-[11px] text-slate-500">Wypełnij dane i skonfiguruj listy pozycji.</p></div>
             <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-500"><Eye size={12} className="mr-1 inline"/> {canEdit ? 'Edycja' : 'Podgląd'}</span>
           </div>
-          <EnclosureDocumentForm data={data} onChange={changeForm} disabled={!canEdit}/>
+          <EnclosureDocumentForm data={data} onChange={changeForm} disabled={!canEdit} dictionaries={dictionaries}/>
         </aside>
 
         <main className="min-h-0 overflow-y-auto bg-slate-200/60 p-3 md:p-5 xl:p-6">
@@ -229,6 +240,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         <p className="text-[11px] text-slate-500">Zatwierdzenie zapisuje zmiany lokalnie w zleceniu. Użyj „Zapisz zmiany” w lewym panelu, aby wysłać je na serwer.</p>
         <button type="button" onClick={onClose} className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Zamknij</button>
       </footer>
+      {dictionariesManagerOpen && canEdit && <DocumentDictionariesManager dictionaries={dictionaries} onClose={() => setDictionariesManagerOpen(false)} onSaved={setDictionaries}/>}
       {templateEditorOpen && currentProfile.id === 'admin' && (
         <DocumentTemplateEditorModal
           template={sharedTemplate}
