@@ -291,7 +291,9 @@ function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate
   const legacyRemovedSectionIds = new Set(['drzwi', 'dach']);
   const existingSections = Array.isArray(template.sections) ? template.sections : [];
   const existingDefaultSections = existingSections
-    .filter((section) => currentDefaultIds.has(section.id))
+    .filter((section, index, all) =>
+      currentDefaultIds.has(section.id) && all.findIndex((candidate) => candidate.id === section.id) === index
+    )
     .map((section) => {
       const defaults = currentDefaultSections.find((candidate) => candidate.id === section.id)!;
       const existingFieldIds = Array.isArray(section.fieldIds) ? section.fieldIds : [];
