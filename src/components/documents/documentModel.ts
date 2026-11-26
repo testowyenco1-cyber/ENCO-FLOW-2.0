@@ -345,6 +345,6 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
   hydrated.otwory = normalizeDocumentRows(savedData.otwory ?? base.otwory, 'otwor');
   hydrated.dostawaWarszawa = normalizeDocumentRows(savedData.dostawaWarszawa, 'warszawa');
   hydrated.dostawaPyskowice = normalizeDocumentRows(savedData.dostawaPyskowice, 'pyskowice');
-  hydrated.dodatkoweWyposazenie = Array.isArray(savedData.dodatkoweWyposazenie) ? savedData.dodatkoweWyposazenie : [];
+  hydrated.dodatkoweWyposazenie = Array.isArray(hydrated.dodatkoweWyposazenie) ? hydrated.dodatkoweWyposazenie : [];
   return hydrated as EnclosureDocumentData;
 };
