@@ -226,8 +226,14 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     return table(['Obudowa', 'Ślusarka', 'Dach', 'Drzwi i kraty'], '<tr>' + [data.kolorObudowy, data.kolorSlusarki, data.kolorDachu, data.kolorDrzwiKraty].map(cell).map((value) => '<td>' + value + '</td>').join('') + '</tr>') +
       paragraph('Tynk', data.tynk) + paragraph('Struktura', data.tynkStruktura) + paragraph('Antygraffiti', data.antygraffiti) + paragraph('Dodatkowe opisy', data.opisyDodatkowe);
   }
+  if (path === 'derived.doors') {
+    return table(['Element', 'Ilość', 'Położenie / opis'], rowsHtml(data.slusarka, ['type', 'quantity', 'position']));
+  }
   if (path === 'derived.passages') {
-    return table(['Typ', 'Ilość', 'Lokalizacja / parametry'], rowsHtml([...data.przepusty, ...data.otwory], ['type', 'quantity', 'position']));
+    return table(['Typ przepustu', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(data.przepusty, ['type', 'quantity', 'position']));
+  }
+  if (path === 'derived.openings') {
+    return table(['Typ otworu', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(data.otwory, ['type', 'quantity', 'position']));
   }
   if (path === 'derived.mainEquipment') {
     return table(['Komponent', 'Opis / konfiguracja'], [
