@@ -281,6 +281,7 @@ function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate
       ...clone(defaults),
       ...field,
       ...(field.id === 'typBudowli' ? { required: false, defaultValue: field.defaultValue ?? defaults.defaultValue } : {}),
+      ...(field.id === 'roofEquipment' ? { defaultValue: [] } : {}),
       options: defaults.options ? [...new Set([...(defaults.options || []), ...(field.options || [])])] : field.options,
     };
   });
