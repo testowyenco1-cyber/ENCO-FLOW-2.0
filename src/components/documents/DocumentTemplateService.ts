@@ -36,7 +36,10 @@ const paragraph = (label: string, value: unknown) => asText(value)
   ? '<p><strong>' + escapeHtml(label) + ':</strong> ' + cell(value) + '</p>' : '';
 
 export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: Order): string => {
-  const heading = [data.typObudowy, data.rozmiar, data.oznaczenieStacji, data.nazwaObiektu]
+  const variant = data.rozmiar && data.typObudowy && data.rozmiar.toUpperCase().startsWith(data.typObudowy.toUpperCase())
+    ? data.rozmiar
+    : [data.typObudowy, data.rozmiar].filter(Boolean).join(' ');
+  const heading = [variant, data.oznaczenieStacji, data.nazwaObiektu]
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() || order.projectName || order.orderNumber;
   const deliveryRows = [
     ...data.dostawaWarszawa.map((row) => ({ ...row, position: ['Warszawa', row.position].filter(Boolean).join(' — ') })),
