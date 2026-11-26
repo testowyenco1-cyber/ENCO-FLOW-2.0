@@ -213,11 +213,11 @@ const TEMPLATE_FIELDS: FormField[] = [
   { id: 'opisObudowy', label: 'Opis obudowy — pełne zdanie', valueKey: 'opisObudowy', type: 'textarea', required: true, fullWidth: true },
   { id: 'slusarka', label: 'Drzwi i ślusarka', valueKey: 'slusarka', type: 'doors', fullWidth: true, options: ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo', 'Drzwi do komory transformatora', 'Drzwi techniczne', 'Drzwi wentylacyjne', 'Krata wentylacyjna', 'Drzwi jednoskrzydłowe pełne', 'Drzwi dwuskrzydłowe z kratą wentylacyjną', 'Drzwi EI 120', 'Drzwi EI 60', 'Otwór fi 100 z zaślepieniem', 'Inna ślusarka'] },
   { id: 'drobneElementy', label: 'Pozostałe mniejsze elementy do zamontowania', valueKey: 'drobneElementy', type: 'repeatable', fullWidth: true, options: ['Kieszenie na schemat', 'Otwór do anteny', 'Chłodnica gazów', 'Dach betonowy kopertowy', 'Krata wentylacyjna', 'Inny element'], helpText: 'Możesz wybrać podpowiedź albo wpisać własną pozycję.' },
-  { id: 'siatkaDrzwi', label: 'Siatka wygradzająca — drzwi i ślusarka', valueKey: 'customFields.siatkaDrzwi', type: 'quantity-toggle', defaultValue: { enabled: true, quantity: '1' } },
+  { id: 'siatkaDrzwi', label: 'Siatka wygradzająca — drzwi i ślusarka', valueKey: 'customFields.siatkaDrzwi', type: 'quantity-toggle', defaultValue: { enabled: false, quantity: '1' } },
   { id: 'dachTyp', label: 'Rodzaj dachu', valueKey: 'dachTyp', type: 'select', options: ['Kopertowy', 'Dwuspadowy', 'Wannowy'], sourcePath: 'item.details.typDachu' },
   { id: 'dachMaterial', label: 'Materiał dachu', valueKey: 'customFields.dachMaterial', type: 'select', options: ['Betonowy', 'Stalowy', 'Inny'], sourcePath: 'item.details.dachMaterial', defaultValue: 'Betonowy' },
-  { id: 'roofEquipment', label: 'Dach i wyposażenie — pozycje domyślne', valueKey: 'customFields.wyposazenieDachu', type: 'checkbox-list', fullWidth: true, options: ['Chłodnica gazów', 'Otwory do lampek wskaźnika zwarć', 'Otwór do wyprowadzenia kabla do anteny', '1 x kieszenie na schemat'], defaultValue: ['Chłodnica gazów', 'Otwory do lampek wskaźnika zwarć', 'Otwór do wyprowadzenia kabla do anteny', '1 x kieszenie na schemat'] },
-  { id: 'siatkaDach', label: 'Siatka wygradzająca — dach i wyposażenie', valueKey: 'customFields.siatkaDach', type: 'quantity-toggle', defaultValue: { enabled: true, quantity: '1' } },
+  { id: 'roofEquipment', label: 'Dach i wyposażenie — pozycje do uwzględnienia', valueKey: 'customFields.wyposazenieDachu', type: 'checkbox-list', fullWidth: true, options: ['Chłodnica gazów', 'Otwory do lampek wskaźnika zwarć', 'Otwór do wyprowadzenia kabla do anteny', '1 x kieszenie na schemat'], defaultValue: [] },
+  { id: 'siatkaDach', label: 'Siatka wygradzająca — dach i wyposażenie', valueKey: 'customFields.siatkaDach', type: 'quantity-toggle', defaultValue: { enabled: false, quantity: '1' } },
   { id: 'dodatkoweWyposazenie', label: 'Dodatkowe wyposażenie', valueKey: 'dodatkoweWyposazenie', type: 'checkbox-list', fullWidth: true, options: ['Oświetlenie wewnętrzne i zewnętrzne', 'Antena', 'Lampki ostrzegawcze'] },
   { id: 'przepusty', label: 'Przepusty kablowe', valueKey: 'przepusty', type: 'repeatable', fullWidth: true, options: ['Przepust HEA', 'BWS 100', 'BWS 150', 'HSI 90', 'HSI 150', 'Ø100', 'Inny przepust'] },
   { id: 'otwory', label: 'Otwory i przepusty — pozostałe', valueKey: 'otwory', type: 'repeatable', fullWidth: true, options: ['Przepust HEA', 'Otwór Ø100', 'Otwór kablowy', 'Otwór wentylacyjny', 'Otwór drzwiowy', 'Inny'] },
@@ -418,9 +418,9 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     uwagi: String(d.uwagiDoZleceniaObudowy || 'Proszę o umieszczenie zdjęć stacji po wykonaniu na serwerze.'),
     customFields: {
       dachMaterial: String(d.dachMaterial || ''),
-      wyposazenieDachu: Array.isArray(d.wyposazenieDachu) ? d.wyposazenieDachu : ['Chłodnica gazów', 'Siatka wygradzająca', 'Otwory do lampek wskaźnika zwarć', 'Otwór do wyprowadzenia kabla do anteny', '1 x kieszenie na schemat'],
-      siatkaDrzwi: { enabled: true, quantity: '1' },
-      siatkaDach: { enabled: true, quantity: '1' },
+      wyposazenieDachu: Array.isArray(d.wyposazenieDachu) ? d.wyposazenieDachu : [],
+      siatkaDrzwi: { enabled: false, quantity: '1' },
+      siatkaDach: { enabled: false, quantity: '1' },
       opisy: String(d.opisy || ''),
       rozdzielnicaSN: String(d.rozdzielnicaSN || ''),
       rozdzielnicaNN: String(d.rozdzielnicaNN || ''),
@@ -1003,7 +1003,7 @@ const FormFieldInput: React.FC<{
       {!rows.length && <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Nie dodano drzwi ani ślusarki.</p>}
       {rows.map((row) => <div key={row.id} className="space-y-3 rounded-xl border border-slate-200 p-3">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <label className="block space-y-1 text-xs font-semibold text-slate-600">Rodzaj drzwi<input list="door-category-options" value={row.category || row.type} onChange={(event) => { const category = event.target.value; const dims = doorDimensions(form.typObudowy, category); update(row.id, { category, type: category, width: row.width || dims.width, height: row.height || dims.height }); }} className={commonInput}/></label>
+          <label className="block space-y-1 text-xs font-semibold text-slate-600">Rodzaj drzwi<input list="door-category-options" value={row.category || row.type} onChange={(event) => { const category = event.target.value; const dims = doorDimensions(form.typObudowy, category); const knownAutoSizes = ['950', '1170', '2100', '']; update(row.id, { category, type: category, width: knownAutoSizes.includes(row.width || '') ? dims.width : row.width, height: knownAutoSizes.includes(row.height || '') ? dims.height : row.height }); }} className={commonInput}/></label>
           <label className="block space-y-1 text-xs font-semibold text-slate-600">Liczba skrzydeł<select value={row.wings || 'Jednoskrzydłowe'} onChange={(event) => update(row.id, { wings: event.target.value, openingSide: event.target.value === 'Jednoskrzydłowe' ? (row.openingSide || 'Lewe') : '' })} className={commonInput}><option>Jednoskrzydłowe</option><option>Dwuskrzydłowe</option></select></label>
           {(!row.wings || row.wings === 'Jednoskrzydłowe') && <label className="block space-y-1 text-xs font-semibold text-slate-600">Otwieranie<select value={row.openingSide || 'Lewe'} onChange={(event) => update(row.id, { openingSide: event.target.value })} className={commonInput}><option>Lewe</option><option>Prawe</option></select></label>}
           <div className="grid grid-cols-2 gap-2"><label className="block space-y-1 text-xs font-semibold text-slate-600">Szerokość (mm)<input value={row.width || ''} placeholder={form.typObudowy === 'NZ' ? 'wg wymiaru stacji' : '950'} onChange={(event) => update(row.id, { width: event.target.value })} className={commonInput}/></label><label className="block space-y-1 text-xs font-semibold text-slate-600">Wysokość (mm)<input value={row.height || ''} placeholder={form.typObudowy === 'NZ' ? 'wg wymiaru stacji' : '2100'} onChange={(event) => update(row.id, { height: event.target.value })} className={commonInput}/></label></div>
