@@ -47,7 +47,7 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
       </div>
 
       <Section number="01" title="Dane zlecenia i stacji">
-        <div className="grid grid-cols-2 gap-3">{field('numerZL', 'Numer ZL')}{field('numerZD', 'Numer ZD')}{field('dataZD', 'Data ZD', { type: 'date' })}{field('dataWystawienia', 'Data wystawienia', { type: 'date' })}{field('terminRealizacji', 'Termin realizacji')}{field('typBudowli', 'Typ budowli')}</div>
+        <div className="grid grid-cols-2 gap-3">{field('numerZL', 'Numer ZL')}{field('numerZD', 'Numer ZD')}{field('dataZD', 'Data ZD', { type: 'date' })}{field('dataWystawienia', 'Data wystawienia', { type: 'date' })}{field('terminRealizacji', 'Termin realizacji', { type: 'date' })}{field('typBudowli', 'Typ budowli')}</div>
         <div className="grid grid-cols-2 gap-3">{field('typObudowy', 'Typ obudowy')}{field('rozmiar', 'Rozmiar')}</div>
         {field('nazwaObiektu', 'Nazwa obiektu / inwestycji')}
         <div className="grid grid-cols-2 gap-3">{field('oznaczenieStacji', 'Oznaczenie stacji')}{field('dotExtra', 'Dodatkowa informacja DOT.')}</div>
