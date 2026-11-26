@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Eye, FileText, Printer, RefreshCw, Save } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, FileText, Printer, RefreshCw } from 'lucide-react';
 import type { Order } from '../types/enco';
 import type { UserRoleProfile } from '../types/userRole';
 import { canEditItemType } from '../types/userRole';
@@ -117,7 +117,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(360px,440px)_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(220px,42%)_minmax(0,1fr)] overflow-hidden xl:grid-cols-[minmax(360px,440px)_minmax(0,1fr)] xl:grid-rows-1">
         <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-slate-50 p-3 md:p-4 xl:border-b-0 xl:border-r">
           <div className="mb-3 flex items-center justify-between">
             <div><h2 className="text-sm font-bold text-slate-800">Formularz dokumentu</h2><p className="mt-0.5 text-[11px] text-slate-500">Wypełnij dane i skonfiguruj listy pozycji.</p></div>
