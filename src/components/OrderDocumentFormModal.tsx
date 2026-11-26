@@ -392,7 +392,7 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     montazTermin: String(d.montazTermin || ''),
     montazOdpowiedzialny: String(d.montazOdpowiedzialny || ''),
     montazUwagi: String(d.montazUwagi || ''),
-    dlugosc: String(d.dlugoscObudowy || d.dlugosc || ''),
+    dlugosc: String(d.dlugoscObudowy || d.dlugosc || d.glebokosc || ''),
     szerokosc: String(d.szerokoscObudowy || d.szerokosc || ''),
     wysokosc: String(d.wysokoscObudowy || d.wysokosc || ''),
     konstrukcja: String(d.konstrukcjaBudynku || d.konstrukcja || ''),
@@ -1435,7 +1435,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
   const renderFormFields = () => (
     <div className="space-y-4">
       {templateLoading && <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-800"><Loader2 size={16} className="animate-spin"/> Wczytywanie wzorca formularza — pola są chwilowo zablokowane, żeby nie utracić wpisywanych danych.</div>}
-      <fieldset disabled={templateLoading} className="min-w-0 space-y-4">
+      <fieldset disabled={!canEdit || templateLoading} className="min-w-0 space-y-4">
       {ruleNotices.map((notice, index) => <div key={notice + index} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{notice}</div>)}
       {activeTemplate.sections.filter((section) => section.visible !== false).map((section) => (
         <section key={section.id} className="rounded-xl border border-slate-200 bg-white p-4">
@@ -1770,6 +1770,11 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
             if (isFormFieldChanged(formKey)) detailPatch[detailKey] = (form as any)[formKey];
           }
           if (terminChanged) detailPatch.terminRealizacji = form.terminRealizacji;
+          // Zachowaj zgodność ze standardowymi polami pozycji OBUDOWA używanymi
+          // przez pozostałe widoki aplikacji oraz aliasami dokumentu.
+          if (isFormFieldChanged('dlugosc')) detailPatch.glebokosc = form.dlugosc;
+          if (isFormFieldChanged('szerokosc')) detailPatch.szerokosc = form.szerokosc;
+          if (isFormFieldChanged('wysokosc')) detailPatch.wysokosc = form.wysokosc;
           if (isFormFieldChanged('antygraffiti')) {
             detailPatch.antygraffiti = form.antygraffiti === 'Tak' ? true : form.antygraffiti === 'Nie' ? false : null;
             detailPatch.antygraffitiStatus = form.antygraffiti;
