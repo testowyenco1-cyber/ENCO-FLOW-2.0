@@ -1311,7 +1311,7 @@ async function startServer() {
           return res.status(400).json({ success: false, error: 'Słownik SN musi zawierać listę producers oraz obiekt modelsByProducer.' });
         }
         const producers = incoming.producers.map((value: unknown) => typeof value === 'string' ? value.trim() : '').filter((value: string) => value.length > 0);
-      if (!value || value.length > 120 || /[\u000A\u000D\u0009]/.test(value)) {
+      if (producers.some((value: string) => value.length > 120) ||
             new Set(producers.map((value: string) => value.toLocaleLowerCase('pl'))).size !== producers.length) {
           return res.status(400).json({ success: false, error: 'Nazwy producentów muszą być niepuste i unikalne (maks. 120 znaków).' });
         }
@@ -1502,7 +1502,7 @@ async function startServer() {
       const defaults = DOCUMENT_FORM_DICTIONARY_DEFAULTS[dictionaryKey];
       const value = typeof req.body?.value === 'string' ? req.body.value.trim() : '';
       if (!defaults) return res.status(404).json({ success: false, error: 'Nieznana lista słownika dokumentów.' });
-      if (!value || value.length > 120 || /[\\r\\n\\t]/.test(value)) {
+      if (!value || value.length > 120 || /[\u000A\u000D\u0009]/.test(value)) {
         return res.status(400).json({ success: false, error: 'Nazwa pozycji musi mieć od 1 do 120 znaków.' });
       }
 
