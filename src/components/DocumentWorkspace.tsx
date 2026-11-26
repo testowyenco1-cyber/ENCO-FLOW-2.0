@@ -137,8 +137,10 @@ export const DocumentWorkspace: React.FC<Props> = ({
         documentContentHtml: sanitizeDocumentHtml(previewHtml),
         documentContentUpdatedAt: new Date().toISOString(),
         documentContentManual: previewChanged,
-        __templateVersion: sharedTemplate?.version ?? data.__templateVersion,
-        __templateSnapshot: sharedTemplate ?? data.__templateSnapshot,
+        // Existing documents keep the template version they were created with.
+        // A newly published shared template must not be retroactively attached to old HTML.
+        __templateVersion: data.__templateVersion ?? (data.documentContentHtml === undefined ? sharedTemplate?.version : undefined),
+        __templateSnapshot: data.__templateSnapshot ?? (data.documentContentHtml === undefined ? sharedTemplate ?? undefined : undefined),
         __sourceSnapshotApplied: true,
       };
       const updatedOrder = updateOrderWithEnclosureDocument(order, nextData);
