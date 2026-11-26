@@ -1502,7 +1502,7 @@ async function startServer() {
       for (const field of incoming.fields) {
         if (!field || typeof field.id !== 'string' || !field.id.trim() ||
             typeof field.label !== 'string' || typeof field.valueKey !== 'string' ||
-            !['text', 'textarea', 'number', 'date', 'select', 'checkbox-list', 'repeatable', 'doors', 'quantity-toggle', 'static'].includes(String(field.type))) {
+            !['text', 'textarea', 'number', 'date', 'select', 'checkbox-list', 'repeatable', 'delivery-list', 'doors', 'quantity-toggle', 'static'].includes(String(field.type))) {
           return res.status(400).json({ success: false, error: 'Jedno z pól wzorca ma nieprawidłową definicję.' });
         }
         if (validFieldIds.has(field.id)) return res.status(400).json({ success: false, error: 'Identyfikatory pól muszą być unikalne.' });
