@@ -326,6 +326,7 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
   const markChangesPending = () => setHasPendingChanges(true);
 
   const updateOrdersState = (newOrders: Order[]) => {
+    ordersRef.current = newOrders;
     setOrders(newOrders);
     saveOrders(newOrders);
     pendingOrdersRef.current = true;
@@ -333,6 +334,7 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
   };
 
   const updateDoorOrdersState = (newDoorOrders: DoorOrder[]) => {
+    doorOrdersRef.current = newDoorOrders;
     setDoorOrders(newDoorOrders);
     saveDoorOrders(newDoorOrders);
     pendingDoorOrdersRef.current = true;
@@ -603,12 +605,18 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
     updateDoorOrdersState(updated);
   };
 
-  const handleStageDoorOrders = (stagedDoorOrders: DoorOrder[]) => {
+  const handleStageDoorOrders = useCallback((stagedDoorOrders: DoorOrder[]) => {
     if (!currentProfile.canManageDoors) return;
     const updates = new Map(stagedDoorOrders.map((order) => [order.id, order]));
-    const updated = doorOrdersRef.current.map((order) => updates.get(order.id) || order);
-    updateDoorOrdersState(updated);
-  };
+    pendingDoorOrdersRef.current = true;
+    setHasPendingChanges(true);
+    setDoorOrders((current) => {
+      const updated = current.map((order) => updates.get(order.id) || order);
+      doorOrdersRef.current = updated;
+      saveDoorOrders(updated);
+      return updated;
+    });
+  }, [currentProfile]);
 
   const handleDeleteDoorOrder = (doorOrderId: string) => {
     if (!currentProfile.canManageDoors) {
