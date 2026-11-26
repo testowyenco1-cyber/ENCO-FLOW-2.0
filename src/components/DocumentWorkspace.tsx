@@ -5,13 +5,9 @@ import type { UserRoleProfile } from '../types/userRole';
 import { canEditItemType } from '../types/userRole';
 import { EnclosureDocumentForm } from './documents/EnclosureDocumentForm';
 import { DocumentPreviewEditor } from './documents/DocumentPreviewEditor';
-import {
-  buildEnclosureDocumentHtml,
-  createEnclosureDocumentData,
-  sanitizeDocumentHtml,
-  updateOrderWithEnclosureDocument,
-  type EnclosureDocumentData,
-} from './documents/documentModel';
+import { createEnclosureDocumentData, type EnclosureDocumentData } from './documents/documentModel';
+import { buildEnclosureDocumentHtml, sanitizeDocumentHtml } from './documents/DocumentTemplateService';
+import { updateOrderWithEnclosureDocument } from './documents/DocumentPersistence';
 
 interface Props {
   order: Order;
