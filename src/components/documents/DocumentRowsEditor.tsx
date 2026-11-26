@@ -122,7 +122,7 @@ export const DocumentRowsEditor: React.FC<Props> = ({
                 </div>
               )}
 
-              {kind === 'standard' && (
+              {(kind === 'standard' || kind === 'door') && (
                 <label className="mt-2 block space-y-1 text-[11px] font-medium text-slate-500">
                   Lokalizacja / opis
                   <input className={inputClass} value={row.position} disabled={disabled} onChange={(event) => update(index, { position: event.target.value })} placeholder="Dodaj lokalizację lub szczegóły"/>
