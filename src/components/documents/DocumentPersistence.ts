@@ -8,8 +8,8 @@ export const updateOrderWithEnclosureDocument = (order: Order, data: EnclosureDo
   const now = new Date().toISOString();
   const persisted = {
     ...data,
-    documentContentHtml: data.documentContentHtml ? sanitizeDocumentHtml(data.documentContentHtml) : undefined,
-    documentContentUpdatedAt: data.documentContentHtml ? now : data.documentContentUpdatedAt,
+    documentContentHtml: data.documentContentHtml !== undefined ? sanitizeDocumentHtml(data.documentContentHtml) : undefined,
+    documentContentUpdatedAt: data.documentContentHtml !== undefined ? now : data.documentContentUpdatedAt,
     __sourceSnapshotApplied: true,
   };
   return {
