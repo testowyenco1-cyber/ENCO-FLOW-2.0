@@ -348,7 +348,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
                   }`}
                 >
                   <Check className="w-4 h-4" />
-                  Zapisz zmiany
+                  Zatwierdź
                 </button>
               )}
             </div>
