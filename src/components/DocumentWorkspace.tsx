@@ -83,9 +83,13 @@ export const DocumentWorkspace: React.FC<Props> = ({
     };
 
     if (initial.documentContentHtml !== undefined) {
-      // The saved HTML is already the authoritative document body. Do not
-      // attach the currently published template to older content on reopen.
-      applyTemplate(storedTemplate?.contentHtml ? storedTemplate : null, false);
+      // The saved HTML is already the authoritative document body. Load the
+      // active template for administrator editing, but never render it over old content.
+      if (storedTemplate?.contentHtml && typeof storedTemplate.version === 'number') {
+        applyTemplate(storedTemplate, false);
+      } else {
+        void fetchEnclosureDocumentTemplate().then((template) => applyTemplate(template, false));
+      }
     } else if (storedTemplate?.contentHtml && typeof storedTemplate.version === 'number') {
       applyTemplate(storedTemplate, true);
     } else {
