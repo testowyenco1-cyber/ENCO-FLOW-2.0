@@ -30,7 +30,7 @@ import { DashboardModuleView } from './components/DashboardModuleView';
 import { ActionDashboardView } from './components/ActionDashboardView';
 import { OrderDetailView } from './components/OrderDetailView';
 import { DocumentsModuleView } from './components/DocumentsModuleView';
-import { OrderDocumentFormModal } from './components/OrderDocumentFormModal';
+import { DocumentWorkspace } from './components/DocumentWorkspace';
 import { DoorOrdersView } from './components/DoorOrdersView';
 import { DoorOrderModal } from './components/DoorOrderModal';
 import { NewOrderModal } from './components/NewOrderModal';
@@ -828,7 +828,7 @@ function AppWorkspace({ authUser, onLogout, onRefreshAuthUser }: AppWorkspacePro
       </footer>
 
       {/* Modals */}
-      {(() => { const documentOrder = orders.find((order) => String(order.id) === String(documentOrderId)); return documentOrder ? <OrderDocumentFormModal order={documentOrder} isOpen={isDocumentFormOpen} onClose={() => setIsDocumentFormOpen(false)} onSaveOrderChanges={handleSaveOrderChanges} currentProfile={currentProfile} canDownload={currentProfile.canDownload} /> : null; })()}
+      {isDocumentFormOpen && (() => { const documentOrder = orders.find((order) => String(order.id) === String(documentOrderId)); return documentOrder ? <DocumentWorkspace order={documentOrder} onClose={() => setIsDocumentFormOpen(false)} onSaveOrderChanges={handleSaveOrderChanges} currentProfile={currentProfile} canDownload={currentProfile.canDownload} /> : null; })()}
             <DatabaseManagementModal isOpen={isDatabaseManagementOpen} onClose={() => setIsDatabaseManagementOpen(false)} onOpenCustomers={() => setIsCustomerDatabaseOpen(true)} />
       <CustomerDatabaseModal isOpen={isCustomerDatabaseOpen} onClose={() => setIsCustomerDatabaseOpen(false)} />
 
