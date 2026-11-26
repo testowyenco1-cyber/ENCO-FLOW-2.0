@@ -101,6 +101,167 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
     </div>`;
 };
 
+export interface VersionedDocumentTemplate {
+  key: string;
+  title: string;
+  version: number;
+  contentHtml: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  sections?: unknown[];
+  fields?: unknown[];
+  rules?: unknown[];
+}
+
+export const fetchEnclosureDocumentTemplate = async (): Promise<VersionedDocumentTemplate | null> => {
+  try {
+    const response = await fetch('/api/document-form-templates/zlecenie-obudowy', { credentials: 'same-origin' });
+    if (!response.ok) return null;
+    const result = await response.json();
+    const template = result?.success && result?.template && typeof result.template === 'object'
+      ? result.template as VersionedDocumentTemplate
+      : null;
+    if (!template || typeof template.contentHtml !== 'string' || !template.contentHtml.trim()) return null;
+    return { ...template, contentHtml: sanitizeDocumentHtml(template.contentHtml) };
+  } catch {
+    return null;
+  }
+};
+
+const rowDescription = (row: DocumentRow): string => [
+  row.type,
+  row.quantity ? 'ilość: ' + row.quantity : '',
+  row.position,
+  row.wings,
+  row.openingSide ? 'otwierane ' + row.openingSide : '',
+  row.width && row.height ? row.width + ' × ' + row.height + ' mm' : '',
+  row.ventilationGrille ? 'krata wentylacyjna' : '',
+  row.intakeFan ? 'wentylator nawiewny' : '',
+  row.exhaustFan ? 'wentylator wyciągowy' : '',
+  row.cableType ? 'kabel ' + row.cableType : '',
+  row.diameter ? 'Ø ' + row.diameter : '',
+  row.sealType,
+  row.sealVariant,
+  row.notes,
+].filter(Boolean).join(' — ');
+
+const getNestedValue = (root: unknown, path: string[]): unknown => {
+  let value = root as any;
+  for (const key of path) {
+    if (value === undefined || value === null) return undefined;
+    value = value[key];
+  }
+  return value;
+};
+
+const getTemplatePathValue = (path: string, data: EnclosureDocumentData, order: Order): unknown => {
+  if (path === 'system.today') {
+    const now = new Date();
+    return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+  }
+
+  if (path.startsWith('order.itemByType.')) {
+    const [, , type, ...tail] = path.split('.');
+    const related = order.items.find((entry) => entry.type === type);
+    if (tail.length === 1 && tail[0] === 'documentSummary') {
+      const summary: Record<string, string> = {
+        OBUDOWA: data.opisObudowy,
+        DRZWI: data.slusarka.map(rowDescription).join('; '),
+        ROZDZIELNICA_SN: data.rozdzielnicaSN,
+        ROZDZIELNICA_NN: data.rozdzielnicaNN,
+        SZAFKA_TELEMECHANIKI: data.telemechanika,
+        TRANSFORMATOR: data.transformator,
+        TRANSFORMATOR_POTRZEB_WLASNYCH: data.transformatorPotrzebWlasnych,
+        DODATKOWE: data.inneUrzadzenia,
+        OPISY: data.opisyDodatkowe,
+      };
+      return summary[type] ?? '';
+    }
+    if (tail.length === 1 && tail[0].startsWith('document')) {
+      const documentFields: Record<string, unknown> = {
+        documentFinish: data.tynk,
+        documentAntigraffiti: data.antygraffiti,
+        documentGrounding: data.uziemienie,
+        documentLighting: data.instalacjaOswietleniowa,
+        documentRows: data.slusarka,
+        documentColorShell: data.kolorObudowy,
+        documentColorMetalwork: data.kolorSlusarki,
+        documentColorRoof: data.kolorDachu,
+        documentColorDoorsAndGrilles: data.kolorDrzwiKraty,
+      };
+      return documentFields[tail[0]] ?? '';
+    }
+    return getNestedValue(related, tail);
+  }
+
+  if (path.startsWith('form.')) return getNestedValue(data, path.slice(5).split('.'));
+  if (path.startsWith('order.')) return getNestedValue(order, path.slice(6).split('.'));
+  if (path.startsWith('item.')) {
+    const enclosure = order.items.find((entry) => entry.type === 'OBUDOWA');
+    return getNestedValue(enclosure, path.slice(5).split('.'));
+  }
+  return undefined;
+};
+
+const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, order: Order): string | null => {
+  const titleVariant = data.rozmiar && data.typObudowy && data.rozmiar.toUpperCase().startsWith(data.typObudowy.toUpperCase())
+    ? data.rozmiar
+    : [data.typObudowy, data.rozmiar].filter(Boolean).join(' ');
+  const title = [titleVariant, data.oznaczenieStacji, data.nazwaObiektu].filter(Boolean).join(' ') || order.projectName || order.orderNumber;
+  if (path === 'derived.title') return escapeHtml(title);
+  if (path === 'derived.dot') return escapeHtml([title, data.dotExtra].filter(Boolean).join(' — ') || '—');
+
+  if (path === 'derived.deliveryTable' || path === 'derived.deliveryLists') {
+    const rows = [
+      ...data.dostawaWarszawa.map((row) => ({ ...row, position: ['Warszawa', row.position].filter(Boolean).join(' — ') })),
+      ...data.dostawaPyskowice.map((row) => ({ ...row, position: ['Pyskowice', row.position].filter(Boolean).join(' — ') })),
+    ];
+    return table(['Dostawca', 'Element', 'Ilość', 'Uwagi'], rowsHtml(rows, ['position', 'type', 'quantity', 'notes']));
+  }
+  if (path === 'derived.smallElements') {
+    const rows = [...data.drobneElementy, ...data.dodatkoweWyposazenie.map((type, index) => ({ id: 'extra-' + index, type, quantity: '1', position: '' }))];
+    return table(['Element', 'Ilość', 'Opis'], rowsHtml(rows, ['type', 'quantity', 'position']));
+  }
+  if (path === 'derived.colours') {
+    return table(['Obudowa', 'Ślusarka', 'Dach', 'Drzwi i kraty'], '<tr>' + [data.kolorObudowy, data.kolorSlusarki, data.kolorDachu, data.kolorDrzwiKraty].map(cell).map((value) => '<td>' + value + '</td>').join('') + '</tr>') +
+      paragraph('Tynk', data.tynk) + paragraph('Struktura', data.tynkStruktura) + paragraph('Antygraffiti', data.antygraffiti) + paragraph('Dodatkowe opisy', data.opisyDodatkowe);
+  }
+  if (path === 'derived.passages') {
+    return table(['Typ', 'Ilość', 'Lokalizacja / parametry'], rowsHtml([...data.przepusty, ...data.otwory], ['type', 'quantity', 'position']));
+  }
+  if (path === 'derived.mainEquipment') {
+    return table(['Komponent', 'Opis / konfiguracja'], [
+      ['Rozdzielnica SN', data.rozdzielnicaSN], ['Rozdzielnica NN', data.rozdzielnicaNN],
+      ['Telemechanika', data.telemechanika], ['Transformator', data.transformator],
+      ['Transformator potrzeb własnych', data.transformatorPotrzebWlasnych],
+      ['Uziemienie', data.uziemienie], ['Oświetlenie', data.instalacjaOswietleniowa],
+      ['Inne urządzenia', data.inneUrzadzenia],
+    ].filter((entry) => asText(entry[1])).map(([label, value]) => '<tr><td><strong>' + escapeHtml(label) + '</strong></td><td>' + cell(value) + '</td></tr>').join('') || '<tr><td colspan="2">Nie uzupełniono danych urządzeń.</td></tr>');
+  }
+  if (path === 'derived.mountingSection') {
+    return paragraph('Wykonawca', data.montazWykonawca) + paragraph('Termin montażu', data.montazTermin) +
+      paragraph('Odpowiedzialny / jednostka', data.montazOdpowiedzialny) + paragraph('Uwagi montażowe', data.montazUwagi);
+  }
+  return null;
+};
+
+export const renderVersionedEnclosureTemplate = (
+  template: VersionedDocumentTemplate,
+  data: EnclosureDocumentData,
+  order: Order,
+): string => {
+  const safeTemplate = sanitizeDocumentHtml(template.contentHtml);
+  const rendered = safeTemplate.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match, path: string) => {
+    const derived = renderDerivedTemplateToken(path, data, order);
+    if (derived !== null) return derived;
+    const value = getTemplatePathValue(path, data, order);
+    if (Array.isArray(value)) return value.map((entry) => escapeHtml(typeof entry === 'object' ? rowDescription(entry as DocumentRow) : asText(entry))).filter(Boolean).join('<br>');
+    if (value && typeof value === 'object') return escapeHtml(asText(value));
+    return escapeHtml(value === undefined || value === null || value === '' ? '—' : asText(value)).replace(/\r\n?|\n/g, '<br>');
+  });
+  return sanitizeDocumentHtml(rendered);
+};
+
 export const sanitizeDocumentHtml = (html: string): string => {
   const source = String(html || '').slice(0, 500000);
   if (typeof DOMParser === 'undefined') {
