@@ -1,5 +1,5 @@
 import React from 'react';
-import type { EnclosureDocumentData } from './documentModel';
+import { getSmallElementRows, inferSmallElementCategory, type EnclosureDocumentData } from './documentModel';
 import { DocumentRowsEditor } from './DocumentRowsEditor';
 
 type Props = {
@@ -61,8 +61,24 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
 
       <Section number="03" title="Drzwi, ślusarka i drobne elementy">
         <DocumentRowsEditor title="Drzwi i ślusarka" value={data.slusarka} onChange={(value) => set('slusarka', value)} disabled={disabled} kind="door"/>
-        <DocumentRowsEditor title="Pozostałe elementy do zamontowania" value={data.drobneElementy} onChange={(value) => set('drobneElementy', value)} disabled={disabled} options={['Kieszenie na schemat', 'Otwór do anteny', 'Chłodnica gazów', 'Dach betonowy kopertowy', 'Krata wentylacyjna', 'Inny element']}/>
-        <Field label="Dodatkowe wyposażenie — pozycje rozdzielone przecinkami" value={data.dodatkoweWyposazenie.join(', ')} disabled={disabled} onChange={(value) => set('dodatkoweWyposazenie', value.split(',').map((part) => part.trim()).filter(Boolean))}/>
+        <p className="text-xs leading-5 text-slate-500">Każdy element dodaj jako osobną pozycję. Określ ilość, jednostkę, grupę i miejsce montażu. Dach, drzwi oraz przepusty mają własne sekcje — nie dodawaj ich ponownie tutaj.</p>
+        <DocumentRowsEditor
+          title="Pozostałe elementy do zamontowania"
+          value={getSmallElementRows(data)}
+          onChange={(value) => onChange({
+            ...data,
+            drobneElementy: value.map((row) => ({
+              ...row,
+              category: row.category || inferSmallElementCategory(row.type),
+              unit: row.unit || 'szt.',
+            })),
+            dodatkoweWyposazenie: [],
+          })}
+          disabled={disabled}
+          kind="small-element"
+          addLabel="Dodaj element do zamontowania"
+          options={['Profil stalowy HEA', 'Kieszeń na schemat', 'Otwór do anteny', 'Chłodnica gazów', 'Krata wentylacyjna', 'Siatka wygradzająca przy drzwiach', 'Siatka wygradzająca na dachu', 'Uchwyt / wspornik', 'Element mocujący', 'Inny element']}
+        />
       </Section>
 
       <Section number="04" title="Kolory i elewacja">
