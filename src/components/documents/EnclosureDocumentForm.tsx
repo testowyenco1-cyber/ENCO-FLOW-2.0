@@ -60,8 +60,8 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
       </Section>
 
       <Section number="03" title="Drzwi, ślusarka i drobne elementy">
-        <DocumentRowsEditor title="Drzwi i ślusarka" value={data.slusarka} onChange={(value) => set('slusarka', value)} disabled={disabled}/>
-        <DocumentRowsEditor title="Pozostałe elementy do zamontowania" value={data.drobneElementy} onChange={(value) => set('drobneElementy', value)} disabled={disabled}/>
+        <DocumentRowsEditor title="Drzwi i ślusarka" value={data.slusarka} onChange={(value) => set('slusarka', value)} disabled={disabled} kind="door"/>
+        <DocumentRowsEditor title="Pozostałe elementy do zamontowania" value={data.drobneElementy} onChange={(value) => set('drobneElementy', value)} disabled={disabled} options={['Kieszenie na schemat', 'Otwór do anteny', 'Chłodnica gazów', 'Dach betonowy kopertowy', 'Krata wentylacyjna', 'Inny element']}/>
         <Field label="Dodatkowe wyposażenie — pozycje rozdzielone przecinkami" value={data.dodatkoweWyposazenie.join(', ')} disabled={disabled} onChange={(value) => set('dodatkoweWyposazenie', value.split(',').map((part) => part.trim()).filter(Boolean))}/>
       </Section>
 
@@ -71,8 +71,8 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
       </Section>
 
       <Section number="05" title="Przepusty kablowe i otwory">
-        <DocumentRowsEditor title="Przepusty kablowe" value={data.przepusty} onChange={(value) => set('przepusty', value)} disabled={disabled} kind="passage"/>
-        <DocumentRowsEditor title="Pozostałe otwory" value={data.otwory} onChange={(value) => set('otwory', value)} disabled={disabled} kind="passage"/>
+        <DocumentRowsEditor title="Przepusty kablowe" value={data.przepusty} onChange={(value) => set('przepusty', value)} disabled={disabled} kind="passage" options={['BWS 150', 'BWS 100', 'HEA', 'HSI 90', 'HSI 150', 'Przepust kablowy innego typu']}/>
+        <DocumentRowsEditor title="Pozostałe otwory" value={data.otwory} onChange={(value) => set('otwory', value)} disabled={disabled} kind="passage" options={['Otwór Ø100', 'Otwór kablowy', 'Otwór wentylacyjny', 'Otwór drzwiowy', 'Inny']}/>
       </Section>
 
       <Section number="06" title="Główne urządzenia i instalacje">
@@ -89,8 +89,8 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
 
       <Section number="07" title="Dostawy i magazyn">
         <p className="text-xs leading-5 text-slate-500">Oddzielne listy pozwalają sprawdzić, które elementy dostarcza Warszawa, a które Pyskowice. Lokalizację lub szczegół wpisz w opisie pozycji.</p>
-        <DocumentRowsEditor title="Dostarcza Warszawa" value={data.dostawaWarszawa} onChange={(value) => set('dostawaWarszawa', value)} disabled={disabled} addLabel="Dodaj element Warszawy"/>
-        <DocumentRowsEditor title="Dostarczają Pyskowice" value={data.dostawaPyskowice} onChange={(value) => set('dostawaPyskowice', value)} disabled={disabled} addLabel="Dodaj element Pyskowic"/>
+        <DocumentRowsEditor title="Dostarcza Warszawa" value={data.dostawaWarszawa} onChange={(value) => set('dostawaWarszawa', value)} disabled={disabled} addLabel="Dodaj element Warszawy" options={['Rozdzielnica SN', 'Rozdzielnica NN', 'Most SN z głowicami', 'Most NN RTS-z', 'Wkłady HSD / HRD', 'Czujniki', 'Przyrząd do kolejności faz']}/>
+        <DocumentRowsEditor title="Dostarczają Pyskowice" value={data.dostawaPyskowice} onChange={(value) => set('dostawaPyskowice', value)} disabled={disabled} addLabel="Dodaj element Pyskowic" options={['Zaciski krzyżowe', 'Rozdzielnica SN Siemens', 'Mosty NN', 'Podkładki antywibracyjne']}/>
       </Section>
 
       <Section number="08" title="Montaż i uwagi końcowe">
