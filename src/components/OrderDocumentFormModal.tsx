@@ -184,7 +184,7 @@ const TEMPLATE_FIELDS: FormField[] = [
   { id: 'terminRealizacji', label: 'Termin realizacji', valueKey: 'terminRealizacji', type: 'text', sourcePath: 'item.plannedDate', helpText: 'Możesz wpisać datę, sam rok lub uzgodniony okres.' },
   { id: 'dotExtra', label: 'Dodatkowa wzmianka DOT.', valueKey: 'dotExtra', type: 'text', helpText: 'Treść podstawowa DOT. jest składana z tytułu; to pole dodaje osobną wzmiankę.' },
   { id: 'opisObudowy', label: 'Opis obudowy — pełne zdanie', valueKey: 'opisObudowy', type: 'textarea', required: true, fullWidth: true },
-  { id: 'slusarka', label: 'Drzwi i ślusarka', valueKey: 'slusarka', type: 'doors', fullWidth: true, options: ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo', 'Drzwi do komory transformatora', 'Drzwi techniczne', 'Drzwi wentylacyjne', 'Krata wentylacyjna'] },
+  { id: 'slusarka', label: 'Drzwi i ślusarka', valueKey: 'slusarka', type: 'doors', fullWidth: true, options: ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo', 'Drzwi do komory transformatora', 'Drzwi techniczne', 'Drzwi wentylacyjne', 'Krata wentylacyjna', 'Drzwi jednoskrzydłowe pełne', 'Drzwi dwuskrzydłowe z kratą wentylacyjną', 'Drzwi EI 120', 'Drzwi EI 60', 'Otwór fi 100 z zaślepieniem', 'Inna ślusarka'] },
   { id: 'drobneElementy', label: 'Pozostałe mniejsze elementy do zamontowania', valueKey: 'drobneElementy', type: 'repeatable', fullWidth: true, options: ['Kieszenie na schemat', 'Otwór do anteny', 'Chłodnica gazów', 'Dach betonowy kopertowy', 'Krata wentylacyjna', 'Inny element'], helpText: 'Możesz wybrać podpowiedź albo wpisać własną pozycję.' },
   { id: 'siatkaDrzwi', label: 'Siatka wygradzająca — drzwi i ślusarka', valueKey: 'customFields.siatkaDrzwi', type: 'quantity-toggle', defaultValue: { enabled: true, quantity: '1' } },
   { id: 'dachTyp', label: 'Rodzaj dachu', valueKey: 'dachTyp', type: 'select', options: ['Kopertowy', 'Dwuspadowy', 'Wannowy'], sourcePath: 'item.details.typDachu' },
@@ -304,7 +304,7 @@ const DEFAULT_TEMPLATE: DocumentTemplate = {
     '<h3>Kolory i opis elewacji</h3>{{derived.colours}}' +
     '<h3>Przepusty kablowe</h3>{{derived.passages}}' +
     '<h2>W STACJI BĘDĄ ZAMONTOWANE NASTĘPUJĄCE URZĄDZENIA</h2>{{derived.mainEquipment}}' +
-    '<h2>ELEMENTY DOSTARCZANE PRZEZ WARSZAWĘ I PYSKOWICE</h2>{{derived.deliveryTable}}' +
+    '<h2>ELEMENTY DOSTARCZANE</h2>{{derived.deliveryLists}}' +
     '{{derived.mountingSection}}' +
     '<p><strong>UWAGI:</strong> {{form.uwagi}}</p>' +
     '</div>',
@@ -672,6 +672,18 @@ function renderColoursHtml(form: FormData): string {
 function renderPassagesHtml(form: FormData): string {
   return htmlList([...(form.przepusty || []), ...(form.otwory || [])].filter((row) => row && row.type).map((row) => displayValue(row)), 'Nie wskazano przepustów ani otworów.');
 }
+function renderDeliveryListsHtml(form: FormData): string {
+  const renderGroup = (title: string, value: unknown) => {
+    const rows = normalizeDeliveryRows(value).filter((row) => row.type.trim()).map((row) => {
+      const quantity = String(row.quantity || '1').trim();
+      const prefix = quantity ? quantity + ' × ' : '';
+      return prefix + row.type + (row.position ? ' — ' + row.position : '');
+    });
+    return '<h3>' + escapeHtml(title) + '</h3>' + htmlList(rows, 'Nie wskazano elementów.');
+  };
+  return renderGroup('Dostarcza Warszawa', form.dostawaWarszawa) +
+    renderGroup('Dostarczają Pyskowice', form.dostawaPyskowice);
+}
 function renderMainEquipmentHtml(form: FormData): string {
   const fields: Array<[string, any]> = [
     ['Rozdzielnica SN', form.customFields?.rozdzielnicaSN], ['Rozdzielnica NN', form.customFields?.rozdzielnicaNN],
@@ -694,6 +706,7 @@ function renderTemplateHtml(template: DocumentTemplate, form: FormData, order: O
     if (path === 'derived.title') return escapeHtml(title || '—');
     if (path === 'derived.dot') return escapeHtml([title, form.dotExtra].filter(Boolean).join(' — ') || '—');
     if (path === 'derived.deliveryTable') return deliveryTableHtml(form);
+    if (path === 'derived.deliveryLists') return renderDeliveryListsHtml(form);
     if (path === 'derived.smallElements') return renderSmallElementsHtml(form);
     if (path === 'derived.colours') return renderColoursHtml(form);
     if (path === 'derived.passages') return renderPassagesHtml(form);
