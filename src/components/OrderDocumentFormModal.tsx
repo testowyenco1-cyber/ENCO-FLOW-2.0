@@ -286,9 +286,28 @@ function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate
   });
   const knownFieldIds = new Set(mergedFields.map((field) => field.id));
   TEMPLATE_FIELDS.forEach((field) => { if (!knownFieldIds.has(field.id)) mergedFields.push(clone(field)); });
-  const legacyDefaultIds = new Set(['naglowek', 'opis', 'drzwi', 'dach', 'otwory', 'kolory', 'urzadzenia', 'dostawy']);
-  const customSections = (template.sections || []).filter((section) => !legacyDefaultIds.has(section.id));
-  const mergedSections = [...DEFAULT_TEMPLATE.sections.map(clone), ...customSections];
+  const currentDefaultSections = DEFAULT_TEMPLATE.sections;
+  const currentDefaultIds = new Set(currentDefaultSections.map((section) => section.id));
+  const legacyRemovedSectionIds = new Set(['drzwi', 'dach']);
+  const existingSections = Array.isArray(template.sections) ? template.sections : [];
+  const existingDefaultSections = existingSections
+    .filter((section) => currentDefaultIds.has(section.id))
+    .map((section) => {
+      const defaults = currentDefaultSections.find((candidate) => candidate.id === section.id)!;
+      const existingFieldIds = Array.isArray(section.fieldIds) ? section.fieldIds : [];
+      return {
+        ...clone(defaults),
+        ...section,
+        fieldIds: [...new Set([...existingFieldIds, ...defaults.fieldIds.filter((fieldId) => !existingFieldIds.includes(fieldId))])],
+      };
+    });
+  const missingDefaultSections = currentDefaultSections
+    .filter((section) => !existingSections.some((existing) => existing.id === section.id))
+    .map(clone);
+  const customSections = existingSections.filter((section) =>
+    !currentDefaultIds.has(section.id) && !legacyRemovedSectionIds.has(section.id)
+  );
+  const mergedSections = [...existingDefaultSections, ...missingDefaultSections, ...customSections];
   template = { ...template, sections: mergedSections, fields: mergedFields.map((field) => ['dostawaWarszawa', 'dostawaPyskowice'].includes(field.id) ? { ...field, type: 'delivery-list' as FieldType } : field) };
   return {
     ...template,
