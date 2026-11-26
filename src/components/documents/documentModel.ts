@@ -328,14 +328,19 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
       (hydrated as Record<string, unknown>)[documentKey] = legacyCustom[legacyKey];
     }
   }
-  if (!hydrated.dachKlasa && legacyCustom.dachMaterial) hydrated.dachKlasa = asText(legacyCustom.dachMaterial);
+  const savedRoofMaterial = (savedData as Record<string, unknown>).dachKlasa;
+  if ((savedRoofMaterial === undefined || savedRoofMaterial === null || savedRoofMaterial === '') && legacyCustom.dachMaterial) {
+    hydrated.dachKlasa = asText(legacyCustom.dachMaterial);
+  }
   const legacyRoofItems = Array.isArray(legacyCustom.wyposazenieDachu) ? legacyCustom.wyposazenieDachu.map(asText).filter(Boolean) : [];
   const additionalItems = [...(hydrated.dodatkoweWyposazenie || [])];
   for (const entry of legacyRoofItems) if (entry && !additionalItems.includes(entry)) additionalItems.push(entry);
   const doorMesh = legacyCustom.siatkaDrzwi as { enabled?: unknown; quantity?: unknown } | undefined;
   const roofMesh = legacyCustom.siatkaDach as { enabled?: unknown; quantity?: unknown } | undefined;
-  if (doorMesh?.enabled) additionalItems.push('Siatka wygradzająca przy drzwiach — ' + firstText(doorMesh.quantity, '1') + ' szt.');
-  if (roofMesh?.enabled) additionalItems.push('Siatka wygradzająca na dachu — ' + firstText(roofMesh.quantity, '1') + ' szt.');
+  const doorMeshLabel = doorMesh?.enabled ? 'Siatka wygradzająca przy drzwiach — ' + firstText(doorMesh.quantity, '1') + ' szt.' : '';
+  const roofMeshLabel = roofMesh?.enabled ? 'Siatka wygradzająca na dachu — ' + firstText(roofMesh.quantity, '1') + ' szt.' : '';
+  if (doorMeshLabel && !additionalItems.includes(doorMeshLabel)) additionalItems.push(doorMeshLabel);
+  if (roofMeshLabel && !additionalItems.includes(roofMeshLabel)) additionalItems.push(roofMeshLabel);
   hydrated.dodatkoweWyposazenie = additionalItems;
 
   hydrated.customFields = { ...base.customFields, ...legacyCustom };
