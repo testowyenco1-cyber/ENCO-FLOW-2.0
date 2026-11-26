@@ -5,7 +5,6 @@ import { StatusSwitcher } from './StatusSwitcher';
 import { DepartureBadge } from './DepartureBadge';
 import { ItemDetailsCard } from './ItemDetailsCard';
 import { AttachmentList } from './AttachmentList';
-import { OrderDocumentFormModal } from './OrderDocumentFormModal';
 import { OfferDocumentModal } from './OfferDocumentModal';
 import { OrderFilesModal } from './OrderFilesModal';
 import {
@@ -39,7 +38,7 @@ interface OrderDetailViewProps {
   onArchive: () => void;
   isArchived: boolean;
   onUpdateOrderStatus: (orderId: string, updatedOrder: Order) => void;
-  onSaveOrderChanges: (order: Order) => void;
+  onOpenDocumentWorkspace: (order: Order) => void;
   onOpenEditOrderModal: () => void;
   onOpenEditItemModal: (item: OrderItem) => void;
   onNavigateToDoorModule?: (numerDokumentu?: string) => void;
@@ -55,7 +54,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   onArchive,
   isArchived,
   onUpdateOrderStatus,
-  onSaveOrderChanges,
+  onOpenDocumentWorkspace,
   onOpenEditOrderModal,
   onOpenEditItemModal,
   onNavigateToDoorModule,
@@ -72,7 +71,6 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   const visibleItems = order.items.filter((item) => !isHiddenMainPosition(item));
   const [editingGeneralNotes, setEditingGeneralNotes] = useState(false);
   const [generalNotesInput, setGeneralNotesInput] = useState(order.generalNotes);
-  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [isTechnicalSheetOpen, setIsTechnicalSheetOpen] = useState(false);
   const [isOrderFilesModalOpen, setIsOrderFilesModalOpen] = useState(false);
   const [selectedFolderForModal, setSelectedFolderForModal] = useState<string>('01_Dokumentacja_Glowna');
@@ -358,20 +356,6 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   const departureOwner = getOrderFieldDepartment('departureDate');
   const actualDepartureDate = order.items.find((item) => item.type === 'DATA_WYJAZDU')?.completedDate || '';
 
-  // Formularz dokumentu działa jako osobna podstrona, a nie okno modalne.
-  if (isOfferModalOpen) {
-    return (
-      <OrderDocumentFormModal
-        order={order}
-        isOpen={isOfferModalOpen}
-        onClose={() => setIsOfferModalOpen(false)}
-        onSaveOrderChanges={onSaveOrderChanges}
-        currentProfile={profile}
-        canDownload={profile.canDownload}
-      />
-    );
-  }
-
   return (
     <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-start">
       <div className="min-w-0 flex-1 space-y-8 pb-16">
@@ -468,9 +452,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setIsOfferModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-2xs border border-blue-500 transition-colors cursor-pointer"
-                title="Wypełnij formularz dokumentu, sprawdź podgląd i zatwierdź zmiany osobno"
+                onClick={() => onOpenDocumentWorkspace(order)}
+                disabled={!order.items.some((item) => item.type === 'OBUDOWA')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-2xs border border-blue-500 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                title={order.items.some((item) => item.type === 'OBUDOWA') ? "Otwórz Centrum dokumentów dla tego zlecenia" : "Zlecenie nie zawiera pozycji OBUDOWA"}
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Formularze dokumentów</span>
@@ -956,16 +941,6 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
         client={order.client}
         currentProfile={profile}
         onOpenChange={handleTasksPanelOpenChange}
-      />
-
-      {/* Offer Document Generator & Technical Sheet Modal */}
-      <OrderDocumentFormModal
-        order={order}
-        isOpen={isOfferModalOpen}
-        onClose={() => setIsOfferModalOpen(false)}
-        onSaveOrderChanges={onSaveOrderChanges}
-        currentProfile={profile}
-        canDownload={profile.canDownload}
       />
 
       <OfferDocumentModal
