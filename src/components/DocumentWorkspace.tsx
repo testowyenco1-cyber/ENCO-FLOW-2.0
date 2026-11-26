@@ -62,19 +62,29 @@ export const DocumentWorkspace: React.FC<Props> = ({
   useEffect(() => {
     let active = true;
     const initial = createEnclosureDocumentData(order);
-    void fetchEnclosureDocumentTemplate().then((template) => {
+    const storedTemplate = initial.__templateSnapshot && typeof initial.__templateSnapshot === 'object'
+      ? initial.__templateSnapshot as VersionedDocumentTemplate
+      : null;
+
+    const applyTemplate = (template: VersionedDocumentTemplate | null, allowRender: boolean) => {
       if (!active) return;
       sharedTemplateRef.current = template;
       setSharedTemplate(template);
       setTemplateLoading(false);
-      // Only new documents use the newest shared template. A saved document is
-      // its own snapshot and is never silently re-rendered from a later version.
-      if (template && initial.documentContentHtml === undefined && !previewChangedRef.current) {
+      // A stored template snapshot belongs to this document. Only a document
+      // without its own snapshot may adopt the newest shared server version.
+      if (template && allowRender && initial.documentContentHtml === undefined && !previewChangedRef.current) {
         const nextHtml = renderVersionedEnclosureTemplate(template, dataRef.current, order);
         setPreviewHtml(sanitizeDocumentHtml(nextHtml));
         setPreviewResetToken((value) => value + 1);
       }
-    });
+    };
+
+    if (storedTemplate?.contentHtml && typeof storedTemplate.version === 'number') {
+      applyTemplate(storedTemplate, true);
+    } else {
+      void fetchEnclosureDocumentTemplate().then((template) => applyTemplate(template, true));
+    }
     return () => { active = false; };
   }, [order.id]);
 
@@ -122,6 +132,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         documentContentUpdatedAt: new Date().toISOString(),
         documentContentManual: previewChanged,
         __templateVersion: sharedTemplate?.version ?? data.__templateVersion,
+        __templateSnapshot: sharedTemplate ?? data.__templateSnapshot,
         __sourceSnapshotApplied: true,
       };
       const updatedOrder = updateOrderWithEnclosureDocument(order, nextData);
