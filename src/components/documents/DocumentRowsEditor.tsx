@@ -6,20 +6,29 @@ type Props = {
   value: DocumentRow[];
   onChange: (rows: DocumentRow[]) => void;
   disabled?: boolean;
-  kind?: 'standard' | 'passage';
+  kind?: 'standard' | 'passage' | 'door';
   addLabel?: string;
+  options?: string[];
 };
 
 const inputClass = 'w-full min-w-0 rounded-md border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500';
+const doorOptions = [
+  'Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo', 'Drzwi do komory transformatora',
+  'Drzwi techniczne', 'Drzwi wentylacyjne', 'Krata wentylacyjna',
+  'Drzwi jednoskrzydłowe pełne', 'Drzwi dwuskrzydłowe z kratą wentylacyjną',
+  'Drzwi EI 120', 'Drzwi EI 60', 'Otwór fi 100 z zaślepieniem',
+];
 
 export const DocumentRowsEditor: React.FC<Props> = ({
-  title, value, onChange, disabled = false, kind = 'standard', addLabel = 'Dodaj pozycję',
+  title, value, onChange, disabled = false, kind = 'standard', addLabel = 'Dodaj pozycję', options = [],
 }) => {
+  const listId = 'document-options-' + title.toLocaleLowerCase('pl-PL').replace(/[^a-z0-9]+/g, '-');
+  const suggestions = kind === 'door' ? doorOptions : options;
   const update = (index: number, patch: Partial<DocumentRow>) => {
     onChange(value.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
   };
   const add = () => onChange([...value, {
-    id: `row-${Date.now()}-${value.length}`, type: '', quantity: '1', position: '',
+    id: 'row-' + Date.now() + '-' + value.length, type: '', quantity: '1', position: '',
   }]);
   const remove = (index: number) => onChange(value.filter((_, rowIndex) => rowIndex !== index));
 
@@ -35,7 +44,8 @@ export const DocumentRowsEditor: React.FC<Props> = ({
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_76px_auto]">
               <label className="min-w-0 space-y-1 text-[11px] font-medium text-slate-500">
                 Nazwa elementu
-                <input className={inputClass} value={row.type} disabled={disabled} onChange={(event) => update(index, { type: event.target.value })} placeholder="Wpisz lub wybierz element"/>
+                <input className={inputClass} value={row.type} disabled={disabled} onChange={(event) => update(index, { type: event.target.value, category: kind === 'door' ? event.target.value : row.category })} placeholder="Wpisz lub wybierz element" list={suggestions.length ? listId : undefined}/>
+                {index === 0 && suggestions.length > 0 && <datalist id={listId}>{suggestions.map((option) => <option key={option} value={option}/>)}</datalist>}
               </label>
               <label className="space-y-1 text-[11px] font-medium text-slate-500">
                 Ilość
@@ -49,6 +59,17 @@ export const DocumentRowsEditor: React.FC<Props> = ({
               Lokalizacja / opis
               <input className={inputClass} value={row.position} disabled={disabled} onChange={(event) => update(index, { position: event.target.value })} placeholder="Np. obok rozdzielnicy SN, od strony NN"/>
             </label>
+            {kind === 'door' && (
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <label className="space-y-1 text-[11px] font-medium text-slate-500">Szerokość [mm]<input className={inputClass} value={row.width || ''} disabled={disabled} onChange={(event) => update(index, { width: event.target.value })}/></label>
+                <label className="space-y-1 text-[11px] font-medium text-slate-500">Wysokość [mm]<input className={inputClass} value={row.height || ''} disabled={disabled} onChange={(event) => update(index, { height: event.target.value })}/></label>
+                <label className="space-y-1 text-[11px] font-medium text-slate-500">Skrzydła<select className={inputClass} value={row.wings || ''} disabled={disabled} onChange={(event) => update(index, { wings: event.target.value })}><option value="">Nie określono</option><option>Jednoskrzydłowe</option><option>Dwuskrzydłowe</option></select></label>
+                <label className="space-y-1 text-[11px] font-medium text-slate-500">Otwieranie<select className={inputClass} value={row.openingSide || ''} disabled={disabled} onChange={(event) => update(index, { openingSide: event.target.value })}><option value="">Nie określono</option><option>Lewe</option><option>Prawe</option></select></label>
+                <label className="flex items-center gap-2 text-[11px] text-slate-600"><input type="checkbox" checked={Boolean(row.ventilationGrille)} disabled={disabled} onChange={(event) => update(index, { ventilationGrille: event.target.checked })}/> Krata wentylacyjna</label>
+                <label className="flex items-center gap-2 text-[11px] text-slate-600"><input type="checkbox" checked={Boolean(row.intakeFan)} disabled={disabled} onChange={(event) => update(index, { intakeFan: event.target.checked })}/> Wentylator nawiewny</label>
+                <label className="flex items-center gap-2 text-[11px] text-slate-600"><input type="checkbox" checked={Boolean(row.exhaustFan)} disabled={disabled} onChange={(event) => update(index, { exhaustFan: event.target.checked })}/> Wentylator wyciągowy</label>
+              </div>
+            )}
             {kind === 'passage' && (
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 <label className="space-y-1 text-[11px] font-medium text-slate-500">Typ kabla<input className={inputClass} value={row.cableType || ''} disabled={disabled} onChange={(event) => update(index, { cableType: event.target.value })}/></label>
