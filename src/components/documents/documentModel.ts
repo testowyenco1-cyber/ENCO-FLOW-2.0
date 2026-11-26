@@ -89,6 +89,11 @@ const asText = (value: unknown): string => {
   if (typeof value === 'boolean') return value ? 'Tak' : 'Nie';
   if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
   if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(', ');
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if ('enabled' in record && 'quantity' in record) return record.enabled ? 'Tak, ilość: ' + firstText(record.quantity, '1') : 'Nie';
+    return Object.values(record).map(asText).filter(Boolean).join(' · ');
+  }
   return '';
 };
 
