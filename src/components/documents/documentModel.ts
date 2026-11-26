@@ -234,7 +234,7 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
     kolorDrzwiKraty: firstText(colors.kolorDrzwiKraty, colors.kolorDrzwi, details.kolorDrzwiKraty, details.kolorDrzwi),
     tynk: firstText(details.tynk, details.wykonczenie, details.materialWykonczenia),
     tynkStruktura: firstText(details.tynkStruktura, details.strukturaTynku),
-    antygraffiti: firstText(details.antygraffitiStatus, typeof details.antygraffiti === 'boolean' ? details.antygraffiti : undefined),
+    antygraffiti: firstText(details.antygraffitiStatus, details.antygraffiti),
     rozdzielnicaSN: relatedSummary(order, 'ROZDZIELNICA_SN'),
     rozdzielnicaNN: relatedSummary(order, 'ROZDZIELNICA_NN'),
     telemechanika: relatedSummary(order, 'SZAFKA_TELEMECHANIKI'),
@@ -279,7 +279,34 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
     }
   }
 
-  hydrated.customFields = { ...base.customFields, ...(savedData.customFields || {}) };
+  const legacyCustom = savedData.customFields && typeof savedData.customFields === 'object'
+    ? savedData.customFields as Record<string, unknown>
+    : {};
+  const legacyFieldMap: Array<[keyof EnclosureDocumentData, string]> = [
+    ['rozdzielnicaSN', 'rozdzielnicaSN'],
+    ['rozdzielnicaNN', 'rozdzielnicaNN'],
+    ['telemechanika', 'telemechanika'],
+    ['transformator', 'transformator'],
+    ['transformatorPotrzebWlasnych', 'transformatorPotrzebWlasnych'],
+    ['uziemienie', 'uziemienie'],
+    ['instalacjaOswietleniowa', 'instalacjaOswietleniowa'],
+    ['inneUrzadzenia', 'inneUrzadzenia'],
+  ];
+  for (const [documentKey, legacyKey] of legacyFieldMap) {
+    const current = hydrated[documentKey];
+    if ((current === undefined || current === null || current === '') && legacyCustom[legacyKey] !== undefined) {
+      (hydrated as Record<string, unknown>)[documentKey] = legacyCustom[legacyKey];
+    }
+  }
+  if (!hydrated.inneUrzadzenia && legacyCustom.opisy) {
+    hydrated.inneUrzadzenia = asText(legacyCustom.opisy);
+  }
+  const legacyRoofItems = legacyCustom.wyposazenieDachu;
+  if ((!hydrated.dodatkoweWyposazenie || hydrated.dodatkoweWyposazenie.length === 0) && Array.isArray(legacyRoofItems)) {
+    hydrated.dodatkoweWyposazenie = legacyRoofItems.map(asText).filter(Boolean);
+  }
+
+  hydrated.customFields = { ...base.customFields, ...legacyCustom };
   hydrated.drobneElementy = normalizeDocumentRows(savedData.drobneElementy ?? base.drobneElementy, 'element');
   hydrated.slusarka = normalizeDocumentRows(savedData.slusarka ?? base.slusarka, 'door');
   hydrated.przepusty = normalizeDocumentRows(savedData.przepusty ?? base.przepusty, 'przepust');
