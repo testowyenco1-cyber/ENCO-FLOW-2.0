@@ -211,7 +211,7 @@ const TEMPLATE_FIELDS: FormField[] = [
   { id: 'terminRealizacji', label: 'Termin realizacji', valueKey: 'terminRealizacji', type: 'text', sourcePath: 'item.plannedDate', helpText: 'Możesz wpisać datę, sam rok lub uzgodniony okres.' },
   { id: 'dotExtra', label: 'Dodatkowa wzmianka DOT.', valueKey: 'dotExtra', type: 'text', helpText: 'Treść podstawowa DOT. jest składana z tytułu; to pole dodaje osobną wzmiankę.' },
   { id: 'opisObudowy', label: 'Opis obudowy — pełne zdanie', valueKey: 'opisObudowy', type: 'textarea', required: true, fullWidth: true },
-  { id: 'slusarka', label: 'Drzwi i ślusarka', valueKey: 'slusarka', type: 'doors', fullWidth: true, options: ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo', 'Drzwi do komory transformatora', 'Drzwi techniczne', 'Drzwi wentylacyjne', 'Krata wentylacyjna', 'Drzwi jednoskrzydłowe pełne', 'Drzwi dwuskrzydłowe z kratą wentylacyjną', 'Drzwi EI 120', 'Drzwi EI 60', 'Otwór fi 100 z zaślepieniem', 'Inna ślusarka'] },
+  { id: 'slusarka', label: 'Drzwi i ślusarka', valueKey: 'slusarka', type: 'doors', fullWidth: true, sourcePath: 'order.itemByType.DRZWI.documentRows', options: ['Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo', 'Drzwi do komory transformatora', 'Drzwi techniczne', 'Drzwi wentylacyjne', 'Krata wentylacyjna', 'Drzwi jednoskrzydłowe pełne', 'Drzwi dwuskrzydłowe z kratą wentylacyjną', 'Drzwi EI 120', 'Drzwi EI 60', 'Otwór fi 100 z zaślepieniem', 'Inna ślusarka'] },
   { id: 'drobneElementy', label: 'Pozostałe mniejsze elementy do zamontowania', valueKey: 'drobneElementy', type: 'repeatable', fullWidth: true, options: ['Kieszenie na schemat', 'Otwór do anteny', 'Chłodnica gazów', 'Dach betonowy kopertowy', 'Krata wentylacyjna', 'Inny element'], helpText: 'Możesz wybrać podpowiedź albo wpisać własną pozycję.' },
   { id: 'siatkaDrzwi', label: 'Siatka wygradzająca — drzwi i ślusarka', valueKey: 'customFields.siatkaDrzwi', type: 'quantity-toggle', defaultValue: { enabled: false, quantity: '1' } },
   { id: 'dachTyp', label: 'Rodzaj dachu', valueKey: 'dachTyp', type: 'select', options: ['Kopertowy', 'Dwuspadowy', 'Wannowy'], sourcePath: 'item.details.typDachu' },
@@ -410,10 +410,7 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     dodatkoweWyposazenie: Array.isArray(d.dodatkoweWyposazenie) ? d.dodatkoweWyposazenie : [],
     przepusty: normalizeRowArray(d.przepusty, 'passage'),
     otwory: normalizeRowArray(d.otwory, 'opening'),
-    slusarka: normalizeRowArray(d.slusarka, 'door').length ? normalizeRowArray(d.slusarka, 'door') : [
-      { id: uid('door'), type: 'Drzwi SN i NN', category: 'Drzwi SN i NN', quantity: '1', position: 'Do rozdzielnic SN i NN', wings: 'Jednoskrzydłowe', openingSide: 'Lewe', width: typObudowy.toUpperCase().startsWith('BEK') ? '950' : '', height: typObudowy.toUpperCase().startsWith('BEK') ? '2100' : '', ventilationGrille: true, intakeFan: false, exhaustFan: false },
-      { id: uid('door'), type: 'Drzwi Trafo', category: 'Drzwi Trafo', quantity: '1', position: 'Do komory transformatora', wings: 'Jednoskrzydłowe', openingSide: 'Lewe', width: typObudowy.toUpperCase().startsWith('BEK') ? '1170' : '', height: typObudowy.toUpperCase().startsWith('BEK') ? '2100' : '', ventilationGrille: true, intakeFan: false, exhaustFan: false },
-    ],
+    slusarka: normalizeRowArray(d.slusarka, 'door'),
     dostawaPyskowice: normalizeDeliveryRows(d.dostawaPyskowice),
     dostawaWarszawa: normalizeDeliveryRows(d.dostawaWarszawa),
     uwagi: String(d.uwagiDoZleceniaObudowy || 'Proszę o umieszczenie zdjęć stacji po wykonaniu na serwerze.'),
@@ -519,6 +516,23 @@ function getRelatedItemDocumentValue(order: Order, type: string, key: string): a
     if (direct !== undefined) return sourceText(direct);
     const equipment = sourceText(firstSourceValue(details.dodatkoweWyposazenie, details.wyposazenieDodatkowe, details.wyposazenie));
     return /oświetlen|oswietlen/i.test(equipment) ? equipment : undefined;
+  }
+
+  if (type === 'DRZWI' && key === 'documentRows') {
+    const doorType = sourceText(firstSourceValue(details.typ, details.rodzaj, details.kategoria));
+    if (!doorType) return undefined;
+    const dims = doorDimensions(String(enclosureDetails.typObudowy || enclosureDetails.rozmiar || ''), doorType);
+    const location = sourceText(details.lokalizacja);
+    const equipment = sourceText(details.dodatkoweWyposazenie);
+    return [{
+      id: 'source-door-' + String(related?.id || 'item'),
+      type: doorType,
+      category: doorType,
+      quantity: sourceText(details.ilosc) || '1',
+      position: [location, equipment].filter(Boolean).join(' — '),
+      width: dims.width,
+      height: dims.height,
+    }];
   }
 
   if (key !== 'documentSummary') return undefined;
