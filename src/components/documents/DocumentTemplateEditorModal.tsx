@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, X, Save, ShieldCheck } from 'lucide-react';
+import { X, Save, ShieldCheck } from 'lucide-react';
 import { DocumentPreviewEditor } from './DocumentPreviewEditor';
 import { sanitizeDocumentHtml, type VersionedDocumentTemplate } from './DocumentTemplateService';
 
@@ -59,7 +59,7 @@ export const DocumentTemplateEditorModal: React.FC<Props> = ({ template, onClose
       </header>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 md:px-6">
-          <label className="block max-w-xl"><span className="mb-1 block text-xs font-semibold text-slate-600">Nazwa wzorca</span><input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"/></label>
+          <label className="block max-w-xl"><span className="mb-1 block text-xs font-semibold text-slate-600">Nazwa wzorca</span><input value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"/></label>
           <p className="mt-2 text-[11px] text-slate-500">Edytuj tekst, nagłówki i tabele bezpośrednio na stronie. Pola automatyczne oznaczone jako <code>{'{{form.numerZL}}'}</code> lub <code>{'{{derived.title}}'}</code> pozostaw w dokumencie, aby uzupełniały się danymi zlecenia.</p>
           {template?.version ? <p className="mt-1 text-[11px] font-semibold text-blue-700">Aktualnie opublikowana wersja: v{template.version}{template.updatedAt ? ' · ' + new Date(template.updatedAt).toLocaleString('pl-PL') : ''}</p> : <p className="mt-1 text-[11px] text-amber-700">To pierwszy wzorzec — publikacja utworzy wersję 1.</p>}
         </div>
