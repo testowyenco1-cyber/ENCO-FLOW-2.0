@@ -1627,7 +1627,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
               >
                 <Check className="w-4 h-4" />
-                Zapisz zmiany
+                Zatwierdź
               </button>
             )}
           </div>
