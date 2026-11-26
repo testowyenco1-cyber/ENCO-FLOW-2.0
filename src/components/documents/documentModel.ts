@@ -213,6 +213,9 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
   const doorRows = sourceRows(order, 'DRZWI');
   const stationSize = firstText(details.rozmiar, order.stationSize);
   const stationType = firstText(details.typObudowy, details.typ, stationSize.match(/^(BEK|NZ)\b/i)?.[1] || '');
+  const stationVariant = stationSize && stationType && stationSize.toUpperCase().startsWith(stationType.toUpperCase())
+    ? stationSize
+    : [stationType, stationSize].filter(Boolean).join(' ');
 
   return {
     typBudowli: firstText(details.typBudowli, 'Stacja transformatorowa'),
@@ -227,8 +230,8 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
     terminRealizacji: item.plannedDate || '',
     dotExtra: '',
     opisObudowy: firstText(details.opisObudowy, details.opis) ||
-      (details.typObudowy || details.rozmiar
-        ? `Wykonanie obudowy ${[asText(details.typObudowy), asText(details.rozmiar)].filter(Boolean).join(' ')} wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi.`
+      (stationVariant
+        ? 'Wykonanie obudowy ' + stationVariant + ' wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi.'
         : ''),
     dlugosc: firstText(details.dlugosc, details.glebokosc),
     szerokosc: firstText(details.szerokosc),
