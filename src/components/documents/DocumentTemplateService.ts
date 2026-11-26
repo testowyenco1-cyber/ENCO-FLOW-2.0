@@ -26,8 +26,10 @@ const rowsHtml = (rows: DocumentRow[], columns: string[]) => {
     const value = key === 'type' ? row.type
       : key === 'quantity' ? row.quantity
       : key === 'unit' ? row.unit || 'szt.'
+      : key === 'quantityWithUnit' ? [row.quantity || '1', row.unit || 'szt.'].join(' ')
       : key === 'category' ? row.category
       : key === 'mountingLocation' ? row.position
+      : key === 'mountingDetails' ? [row.position, row.notes].filter(Boolean).join(' · ')
       : key === 'notes' ? row.notes
       : key === 'position'
         ? [row.position, row.wings, row.openingSide ? 'otwierane ' + row.openingSide : '', row.width && row.height ? row.width + ' × ' + row.height + ' mm' : '', row.ventilationGrille ? 'krata wentylacyjna' : '', row.intakeFan ? 'wentylator nawiewny' : '', row.exhaustFan ? 'wentylator wyciągowy' : '', row.cableType ? 'kabel ' + row.cableType : '', row.diameter ? 'Ø ' + row.diameter : '', row.sealType, row.sealVariant, row.notes].filter(Boolean).join(' · ')
@@ -227,8 +229,8 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
   if (path === 'derived.smallElements') {
     const rows = getSmallElementRows(data);
     return table(
-      ['Grupa', 'Element do zamontowania', 'Ilość', 'Jednostka', 'Miejsce montażu', 'Uwagi / parametry'],
-      rowsHtml(rows, ['category', 'type', 'quantity', 'unit', 'mountingLocation', 'notes']),
+      ['Grupa', 'Element do zamontowania', 'Ilość', 'Miejsce montażu / uwagi'],
+      rowsHtml(rows, ['category', 'type', 'quantityWithUnit', 'mountingDetails']),
     );
   }
   if (path === 'derived.colours') {
@@ -293,8 +295,8 @@ export const renderVersionedEnclosureTemplate = (
       }
       if (path === 'form.drobneElementy' || path === 'form.dodatkoweWyposazenie') {
         return table(
-          ['Grupa', 'Element do zamontowania', 'Ilość', 'Jednostka', 'Miejsce montażu', 'Uwagi / parametry'],
-          rowsHtml(getSmallElementRows(data), ['category', 'type', 'quantity', 'unit', 'mountingLocation', 'notes']),
+          ['Grupa', 'Element do zamontowania', 'Ilość', 'Miejsce montażu / uwagi'],
+          rowsHtml(getSmallElementRows(data), ['category', 'type', 'quantityWithUnit', 'mountingDetails']),
         );
       }
       return value.map((entry) => entry && typeof entry === 'object'
