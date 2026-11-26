@@ -362,7 +362,7 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     ],
     dostawaPyskowice: normalizeDeliveryRows(d.dostawaPyskowice),
     dostawaWarszawa: normalizeDeliveryRows(d.dostawaWarszawa),
-    uwagi: String(d.uwagiDoZleceniaObudowy || ''),
+    uwagi: String(d.uwagiDoZleceniaObudowy || 'Proszę o umieszczenie zdjęć stacji po wykonaniu na serwerze.'),
     customFields: {
       dachMaterial: String(d.dachMaterial || ''),
       wyposazenieDachu: Array.isArray(d.wyposazenieDachu) ? d.wyposazenieDachu : ['Chłodnica gazów', 'Siatka wygradzająca', 'Otwory do lampek wskaźnika zwarć', 'Otwór do wyprowadzenia kabla do anteny', '1 x kieszenie na schemat'],
@@ -1584,7 +1584,6 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-lg font-bold text-slate-900">{mode === 'form' ? 'Uzupełnij dane dokumentu' : mode === 'custom' ? 'Dopasuj bieżący dokument' : 'Edytuj wzorzec dokumentu'}</h2><p className="mt-1 text-xs text-slate-500">{mode === 'custom' ? 'Zmiany struktury i treści pozostają tylko w tym formularzu.' : mode === 'admin' ? 'Publikacja zastosuje wzorzec także do bieżącego formularza. Wcześniej zapisane formularze w innych zleceniach pozostaną bez zmian.' : 'Uzupełnij formularz po lewej. Gotowy dokument poprawiaj bezpośrednio na podglądzie po prawej.'}</p></div>
             {mode === 'form' ? <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={!canEdit} onClick={openCustomEdit} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"><FileText size={14}/> Custom Edit</button>
               {isAdmin && <button type="button" onClick={openAdminEdit} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"><ShieldCheck size={14}/> Admin Edit</button>}
             </div> : <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => { setMode('form'); setMessage(''); }} className="inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-xs font-semibold"><X size={14}/> Anuluj</button>
@@ -1651,6 +1650,15 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
           const detailFieldMap: Array<[string, string]> = [
             ['typBudowli', 'typBudowli'],
             ['opisObudowy', 'opisObudowy'],
+             ['oznaczenieStacji', 'oznaczenieStacji'],
+             ['numerZD', 'numerZD'],
+             ['dataZD', 'dataZD'],
+             ['drobneElementy', 'drobneElementy'],
+             ['tynkStruktura', 'tynkStruktura'],
+             ['montazWykonawca', 'montazWykonawca'],
+             ['montazTermin', 'montazTermin'],
+             ['montazOdpowiedzialny', 'montazOdpowiedzialny'],
+             ['montazUwagi', 'montazUwagi'],
             ['typObudowy', 'typObudowy'],
             ['rozmiar', 'rozmiar'],
             ['dlugosc', 'dlugoscObudowy'],
@@ -1692,6 +1700,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
             ['rozdzielnicaNN', 'rozdzielnicaNN'],
             ['telemechanika', 'telemechanika'],
             ['transformator', 'transformator'],
+             ['transformatorPotrzebWlasnych', 'transformatorPotrzebWlasnych'],
             ['uziemienie', 'uziemienie'],
             ['instalacjaOswietleniowa', 'instalacjaOswietleniowa'],
             ['inneUrzadzenia', 'inneUrzadzenia'],
