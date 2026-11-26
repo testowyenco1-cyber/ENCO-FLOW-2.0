@@ -1,19 +1,6 @@
-import React, { useRef } from 'react';
-import { Order, STATUS_META, ORDER_STATUS_META, formatDimensionM } from '../types/enco';
-import {
-  X,
-  Printer,
-  FileText,
-  CheckCircle2,
-  Building2,
-  Calendar,
-  Zap,
-  Shield,
-  Layers,
-  Check,
-  Copy,
-  Box,
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Order, STATUS_META } from '../types/enco';
+import { X, Printer, Search, ClipboardList, Copy, Check } from 'lucide-react';
 
 interface OfferDocumentModalProps {
   order: Order;
@@ -22,442 +9,258 @@ interface OfferDocumentModalProps {
   canDownload?: boolean;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  typObudowy: 'Typ obudowy', rozmiar: 'Rozmiar', szerokosc: 'Szerokość', glebokosc: 'Głębokość',
+  wysokosc: 'Wysokość', wymiary: 'Wymiary', typWysokosci: 'Rodzaj wysokości',
+  przepustyNN: 'Przepusty NN', przepustySN: 'Przepusty SN', pokrywyNN: 'Pokrywy NN',
+  pokrywySN: 'Pokrywy SN', wkladkiSN: 'Wkładki SN', producent: 'Producent', model: 'Model',
+  typRozdzielnicy: 'Typ rozdzielnicy', konfiguracjaPol: 'Konfiguracja pól', liczbaPol: 'Liczba pól',
+  iloscPol: 'Ilość pól', parametryTechniczne: 'Parametry techniczne',
+  wyposazenieDodatkowe: 'Wyposażenie dodatkowe', moc: 'Moc', mocKVA: 'Moc [kVA]',
+  numerSeryjny: 'Numer seryjny', typ: 'Typ', ilosc: 'Ilość', lokalizacja: 'Lokalizacja',
+  terminDostawy: 'Termin dostawy', dataDostawy: 'Data dostawy', dataGotowosci: 'Data gotowości',
+  planowanaGotowoscTransportu: 'Planowana gotowość transportowa', uwagi: 'Uwagi',
+  zakres: 'Zakres', opis: 'Opis', kolor: 'Kolor', kolorRAL: 'Kolor RAL',
+  typSterownika: 'Typ sterownika', sterownik: 'Sterownik', akumulator: 'Akumulator',
+  antena: 'Antena', maszt: 'Maszt', sensory: 'Sensory', dokumentacja: 'Dokumentacja',
+  nrZamowienia: 'Numer zamówienia', kategoria: 'Kategoria', kontrahent: 'Kontrahent',
+  dataZamowienia: 'Data zamówienia', planowanaDostawa: 'Planowana dostawa',
+};
+
+const INTERNAL_KEYS = new Set(['id', 'orderId', 'createdAt', 'updatedAt', 'history', 'attachments']);
+
+function humanizeKey(key: string): string {
+  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'boolean') return value ? 'Tak' : 'Nie';
+  if (Array.isArray(value)) return value.map(formatValue).filter(Boolean).join(', ');
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([key, nested]) => !INTERNAL_KEYS.has(key) && nested !== '' && nested !== null && nested !== undefined)
+      .map(([key, nested]) => `${humanizeKey(key)}: ${formatValue(nested)}`)
+      .join('; ');
+  }
+  return String(value);
+}
+
+function getItemDetails(item: Order['items'][number]): string[] {
+  return Object.entries(item.details || {})
+    .filter(([key, value]) => !INTERNAL_KEYS.has(key) && value !== '' && value !== null && value !== undefined)
+    .map(([key, value]) => {
+      const formatted = formatValue(value);
+      return formatted ? `${humanizeKey(key)}: ${formatted}` : '';
+    })
+    .filter(Boolean);
+}
+
+function formatDate(value?: string): string {
+  if (!value) return '';
+  const parts = value.split('-');
+  return parts.length === 3 ? parts.reverse().join('.') : value;
+}
+
 export const OfferDocumentModal: React.FC<OfferDocumentModalProps> = ({
   order,
   isOpen,
   onClose,
   canDownload = true,
 }) => {
-  const [copied, setCopied] = React.useState(false);
+  const [search, setSearch] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const items = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('pl-PL');
+    if (!query) return order.items;
+    return order.items.filter((item) => {
+      const haystack = [
+        item.name, item.shortName, item.type, item.notes,
+        ...getItemDetails(item),
+      ].join(' ').toLocaleLowerCase('pl-PL');
+      return haystack.includes(query);
+    });
+  }, [order.items, search]);
 
   if (!isOpen) return null;
 
-  const itemSN = order.items.find((i) => i.type === 'ROZDZIELNICA_SN');
-  const itemNN = order.items.find((i) => i.type === 'ROZDZIELNICA_NN');
-  const itemObudowa = order.items.find((i) => i.type === 'OBUDOWA');
-  const itemMost = order.items.find((i) => i.type === 'MOST');
-
-  const snProducer = itemSN?.details?.producent || 'Schneider Electric';
-  const snModel = itemSN?.details?.model || itemSN?.details?.typRozdzielnicy || 'AirSeT';
-  const snFieldCount = itemSN?.details?.liczbaPol ?? itemSN?.details?.iloscPol ?? 3;
-  const snConfig = itemSN?.details?.konfiguracjaPol || 'L-L-L-T';
-  const snTech = itemSN?.details?.parametryTechniczne || '';
-
-  const nnType = itemNN?.details?.typRozdzielnicy || 'RTS-z';
-  const nnFieldCount = itemNN?.details?.iloscPol || itemNN?.details?.liczbaPol || '8';
-  const nnTransportDate = itemNN?.details?.planowanaGotowoscTransportu || '';
-  const nnEquip = itemNN?.details?.wyposazenieDodatkowe || '';
-
-  const obudowaTyp =
-    itemObudowa?.details?.typObudowy === 'NZ'
-      ? 'NZ — obudowa zewnętrzna'
-      : itemObudowa?.details?.typObudowy === 'BEK'
-      ? 'BEK — obudowa wewnętrzna'
-      : (itemObudowa?.details?.typObudowy || 'BEK — obudowa wewnętrzna');
-  const obudowaRozmiar = itemObudowa?.details?.rozmiar || 'BEK 250/350';
-  const obudowaWymiary =
-    itemObudowa?.details?.szerokosc && itemObudowa?.details?.glebokosc
-      ? `${formatDimensionM(itemObudowa.details.szerokosc)} × ${formatDimensionM(
-          itemObudowa.details.glebokosc
-        )} × ${formatDimensionM(itemObudowa.details.wysokosc)} (${
-          itemObudowa.details.typWysokosci ||
-          (itemObudowa.details.typObudowy === 'NZ'
-            ? 'wysokość zewnętrzna'
-            : 'wysokość wewnętrzna pomieszczeń')
-        })`
-      : itemObudowa?.details?.wymiary || 'Zgodnie ze specyfikacją wariantu';
-  const obudowaDataGotowosci = itemObudowa?.details?.dataGotowosci
-    ? itemObudowa.details.dataGotowosci.split('-').reverse().join('.')
-    : itemObudowa?.plannedDate
-    ? itemObudowa.plannedDate.split('-').reverse().join('.')
-    : 'W toku';
-
-  const todayStr = new Date().toLocaleDateString('pl-PL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-
-  const handlePrint = () => {
-    window.print();
+  const statusLabel = (status: keyof typeof STATUS_META) => {
+    if (status === 'NOT_APPLICABLE') return 'Nie uwzględniono';
+    return STATUS_META[status]?.label || status;
   };
 
-  const handleCopySpec = () => {
-    const text = `SPECYFIKACJA STACJI TRANSFORMATOROWEJ ${order.orderNumber}
-Klient: ${order.client}
-Projekt: ${order.projectName}
-Gabaryt: ${order.stationSize}
+  const handlePrint = () => window.print();
 
-OBUDOWA BETONOWA:
-- Typ: ${obudowaTyp}
-- Rozmiar: ${obudowaRozmiar}
-- Wymiary rzeczywiste: ${obudowaWymiary}
-- Data gotowości prefabrykatu: ${obudowaDataGotowosci}
-
-ROZDZIELNICA SN:
-- Producent: ${snProducer}
-- Model: ${snModel}
-- Ilość pól: ${snFieldCount}
-- Konfiguracja pól: ${snConfig} (L — pole liniowe, T — pole transformatorowe)
-${snTech ? `- Parametry techniczne: ${snTech}` : ''}
-
-ROZDZIELNICA nN:
-- Typ: ${nnType}
-- Ilość pól: ${nnFieldCount}
-${nnTransportDate ? `- Gotowość transportowa: ${nnTransportDate}` : ''}
-${nnEquip ? `- Wyposażenie: ${nnEquip}` : ''}`;
-
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopy = async () => {
+    const lines = [
+      `KARTA KOMPLETACJI ZLECENIA ${order.orderNumber}`,
+      order.projectName,
+      `Klient: ${order.client}`,
+      '',
+      ...order.items.flatMap((item, index) => [
+        `${index + 1}. ${item.name} — ${statusLabel(item.status)}`,
+        ...getItemDetails(item).map((detail) => `   ${detail}`),
+        item.notes ? `   Uwagi: ${item.notes}` : '',
+        '',
+      ].filter(Boolean)),
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   };
+
+  const readyCount = order.items.filter((item) => item.status === 'READY').length;
+  const problemCount = order.items.filter((item) => item.status === 'PROBLEM').length;
+  const openCount = order.items.filter((item) => !['READY', 'NOT_APPLICABLE'].includes(item.status)).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-300 overflow-hidden my-6">
-        {/* Top Control Bar (Hidden when printed) */}
-        <div className="print:hidden flex items-center justify-between px-6 py-3.5 bg-slate-900 text-white border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-sm shadow-inner">
-              E
-            </div>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-2 sm:p-5 print:static print:block print:overflow-visible print:bg-white print:p-0">
+      <div className="my-3 w-full max-w-6xl overflow-hidden rounded-xl border border-slate-300 bg-white shadow-2xl print:my-0 print:max-w-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
+        <div className="print:hidden flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-900 text-white"><ClipboardList className="h-5 w-5" /></div>
             <div>
-              <h2 className="text-sm font-bold tracking-tight">
-                Generowany dokument oferty — Karta techniczna stacji
-              </h2>
-              <p className="text-[11px] text-slate-400">
-                Zlecenie {order.orderNumber} · {order.projectName}
-              </p>
+              <h2 className="text-sm font-bold text-slate-900">Karta kompletacji zlecenia</h2>
+              <p className="text-xs text-slate-500">{order.orderNumber} · {order.projectName}</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopySpec}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-300">Skopiowano!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5 text-slate-300" />
-                  <span>Kopiuj specyfikację</span>
-                </>
-              )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={handleCopy} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+              {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Skopiowano' : 'Kopiuj listę'}
             </button>
-
-            {canDownload ? (
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-xs transition-colors cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Drukuj / Pobierz PDF</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                title="Brak uprawnień do pobierania/drukowania (Profil Ogólny)"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-70"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Pobieranie zablokowane</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer ml-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {canDownload && <button type="button" onClick={handlePrint} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-800 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"><Printer className="h-4 w-4" /> Drukuj / Zapisz PDF</button>}
+            <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-900" aria-label="Zamknij"><X className="h-5 w-5" /></button>
           </div>
         </div>
 
-        {/* Printable Document Content */}
-        <div className="p-8 sm:p-10 text-slate-900 bg-white space-y-6 max-h-[82vh] overflow-y-auto print:max-h-none print:p-0">
-          {/* Document Header */}
-          <div className="border-b-2 border-slate-900 pb-5 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <span className="font-mono text-xs font-black tracking-widest text-blue-900 uppercase bg-blue-50 px-2.5 py-1 rounded border border-blue-200">
-                  ENCO FLOW · SYSTEM PREFABRYKACJI
-                </span>
-                <span className="text-xs text-slate-500 font-mono">
-                  Wersja dokumentu: 2026.1
-                </span>
-              </div>
-              <h1 className="text-2xl font-black text-slate-950 tracking-tight">
-                DOKUMENT OFERTY I SPECYFIKACJA TECHNICZNA
-              </h1>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Kompletna konfiguracja prefabrykowanej kontenerowej stacji transformatorowej
-              </p>
-            </div>
-
-            <div className="text-right">
-              <span className="font-mono text-xl font-black text-blue-900 block">
-                {order.orderNumber}
-              </span>
-              <span className="text-xs text-slate-500">
-                Data sporządzenia: <strong>{todayStr}</strong>
-              </span>
-            </div>
-          </div>
-
-          {/* Section 1: Project & Client Overview */}
-          <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-              1. Dane zlecenia i zamawiającego
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+        <div className="p-5 sm:p-7 print:p-0">
+          <div className="mb-5 border-b-2 border-slate-800 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <span className="text-slate-500 block">Inwestor / Klient:</span>
-                <span className="font-bold text-slate-900 text-sm">{order.client}</span>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-900">ENCO FLOW · dokument wewnętrzny</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">KARTA KOMPLETACJI ZLECENIA</h1>
+                <p className="mt-1 text-sm font-semibold text-slate-700">{order.projectName}</p>
               </div>
-              <div>
-                <span className="text-slate-500 block">Nazwa stacji:</span>
-                <span className="font-bold text-slate-900 text-sm">{order.projectName}</span>
+              <div className="text-right">
+                <p className="font-mono text-xl font-black text-slate-950">{order.orderNumber}</p>
+                <p className="text-xs text-slate-500">Wydruk: {new Date().toLocaleDateString('pl-PL')}</p>
               </div>
-              <div>
-                <span className="text-slate-500 block">Gabaryt korpusu:</span>
-                <span className="font-mono font-bold text-slate-900 text-sm">{order.stationSize}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Termin wydania / transport:</span>
-                <span className="font-mono font-bold text-blue-900 text-sm">
-                  {order.departureDate ? order.departureDate.split('-').reverse().join('.') : 'Do ustalenia'}
-                </span>
-              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-xs sm:grid-cols-4">
+              <div><span className="block text-slate-500">Klient</span><strong>{order.client || '—'}</strong></div>
+              <div><span className="block text-slate-500">Gabaryt stacji</span><strong>{order.stationSize || '—'}</strong></div>
+              <div><span className="block text-slate-500">Planowany wyjazd</span><strong>{formatDate(order.departureDate) || 'Nieustalony'}</strong></div>
+              <div><span className="block text-slate-500">Pozycji na liście</span><strong>{order.items.length}</strong></div>
             </div>
           </div>
 
-          {/* Section 2: Obudowa Betonowa (BEK / NZ) */}
-          <div className="border border-indigo-200 bg-indigo-50/25 rounded-xl p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-indigo-100">
-              <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wide flex items-center gap-2">
-                <Box className="w-4 h-4 text-indigo-600" />
-                <span>2. Obudowa betonowa stacji</span>
-              </h3>
-              <span className="font-mono text-xs font-bold px-2.5 py-0.5 bg-indigo-100 text-indigo-950 rounded border border-indigo-200">
-                {obudowaRozmiar}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="p-3 bg-white rounded-lg border border-indigo-100 shadow-2xs">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Typ obudowy:</span>
-                <span className="font-bold text-slate-900 text-sm">{obudowaTyp}</span>
-              </div>
-              <div className="p-3 bg-white rounded-lg border border-indigo-100 shadow-2xs">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Rzeczywiste wymiary:</span>
-                <span className="font-mono font-bold text-slate-900 text-xs">
-                  {obudowaWymiary}
-                </span>
-              </div>
-              <div className="p-3 bg-white rounded-lg border border-indigo-100 shadow-2xs">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Planowana data gotowości:</span>
-                <span className="font-mono font-bold text-indigo-900 text-sm">
-                  {obudowaDataGotowosci}
-                </span>
-              </div>
-            </div>
+          <div className="mb-4 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-2"><strong className="block text-lg text-emerald-800">{readyCount}</strong><span className="text-[10px] font-semibold text-emerald-900">Gotowe wg statusu</span></div>
+            <div className="rounded border border-amber-200 bg-amber-50 px-2 py-2"><strong className="block text-lg text-amber-900">{openCount}</strong><span className="text-[10px] font-semibold text-amber-950">Wymagają uwagi</span></div>
+            <div className="rounded border border-rose-200 bg-rose-50 px-2 py-2"><strong className="block text-lg text-rose-800">{problemCount}</strong><span className="text-[10px] font-semibold text-rose-900">Problemy</span></div>
           </div>
 
-          {/* Section 3: Rozdzielnica Średniego Napięcia (SN) — GŁÓWNA SEKCJA */}
-          <div className="border-2 border-amber-300 bg-amber-50/30 rounded-xl p-6">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-amber-200">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                  <Zap className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide">
-                    3. Rozdzielnica Średniego Napięcia (SN)
-                  </h3>
-                  <p className="text-[11px] text-amber-800">
-                    Moduł rozdzielczy SN stacji transformatorowej
-                  </p>
-                </div>
-              </div>
-
-              <span className="font-mono text-xs font-bold px-3 py-1 bg-amber-100 text-amber-950 rounded-lg border border-amber-300">
-                {snProducer} · {snModel}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-4">
-              {/* Producent */}
-              <div className="p-3 bg-white rounded-lg border border-amber-200 shadow-2xs">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Producent SN:</span>
-                <span className="font-bold text-slate-900 text-sm">{snProducer}</span>
-              </div>
-
-              {/* Model */}
-              <div className="p-3 bg-white rounded-lg border border-amber-200 shadow-2xs">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Model rozdzielnicy:</span>
-                <span className="font-bold text-blue-900 text-sm">{snModel}</span>
-              </div>
-
-              {/* Ilość pól */}
-              <div className="p-3 bg-white rounded-lg border border-amber-200 shadow-2xs">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Ilość pól:</span>
-                <span className="font-mono font-bold text-slate-900 text-sm">
-                  {snFieldCount} {Number(snFieldCount) === 1 ? 'pole' : Number(snFieldCount) < 5 ? 'pola' : 'pól'}
-                </span>
-              </div>
-
-              {/* Konfiguracja pól */}
-              <div className="p-3 bg-white rounded-lg border border-amber-200 shadow-2xs">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Konfiguracja pól:</span>
-                <span className="font-mono font-black text-blue-900 text-sm tracking-wider">
-                  {snConfig}
-                </span>
-              </div>
-            </div>
-
-            {/* Legenda i objaśnienie oznaczeń */}
-            <div className="p-3 bg-white rounded-lg border border-amber-200 text-xs space-y-1.5">
-              <div className="flex items-center gap-2 text-amber-950 font-bold">
-                <Shield className="w-3.5 h-3.5 text-amber-600" />
-                <span>Legenda oznaczeń konfiguracji pól rozdzielnicy SN:</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-700 pl-5">
-                <div>
-                  <strong className="font-mono text-blue-900 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
-                    L
-                  </strong>{' '}
-                  — <strong>pole liniowe</strong> (wyposażone w rozłącznik lub wyłącznik liniowy)
-                </div>
-                <div>
-                  <strong className="font-mono text-blue-900 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
-                    T
-                  </strong>{' '}
-                  — <strong>pole transformatorowe</strong> (z zabezpieczeniem bezpiecznikowym lub wyłącznikowym)
-                </div>
-              </div>
-              {snTech && (
-                <div className="pt-2 mt-1 border-t border-slate-100 text-[11px] text-slate-600">
-                  <span className="font-semibold text-slate-800">Parametry dodatkowe: </span>
-                  {snTech}
-                </div>
-              )}
-            </div>
+          <div className="print:hidden mb-3 relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Szukaj pozycji lub parametru..." className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
           </div>
 
-          {/* Section 4: Rozdzielnica Niskiego Napięcia (nN) */}
-          <div className="border border-blue-200 bg-blue-50/20 rounded-xl p-5">
-            <h3 className="text-xs font-bold text-blue-950 uppercase tracking-wide mb-3 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-600" />
-              <span>4. Rozdzielnica Niskiego Napięcia (nN)</span>
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="p-3 bg-white rounded-lg border border-blue-100">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Typ rozdzielnicy:</span>
-                <span className="font-bold text-slate-900 text-sm">
-                  {nnType.includes('RTS-w')
-                    ? 'RTS-w — wolnostojąca, obsługa wewnętrzna'
-                    : 'RTS-z — zawieszana, obsługa zewnętrzna'}
-                </span>
-              </div>
-              <div className="p-3 bg-white rounded-lg border border-blue-100">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Ilość pól / odpływów:</span>
-                <span className="font-mono font-bold text-slate-900 text-sm">
-                  {nnFieldCount} odpływów
-                </span>
-              </div>
-              <div className="p-3 bg-white rounded-lg border border-blue-100">
-                <span className="text-slate-500 block text-[11px] mb-0.5">Gotowość do transportu:</span>
-                <span className="font-mono font-bold text-blue-900 text-sm">
-                  {nnTransportDate ? nnTransportDate.split('-').reverse().join('.') : 'Zgodnie z harmonogramem'}
-                </span>
-              </div>
-            </div>
-
-            {nnEquip && (
-              <p className="mt-2 text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-blue-100">
-                <strong className="text-slate-800">Wyposażenie aparaturowe nN:</strong> {nnEquip}
-              </p>
-            )}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">Wykaz elementów i wyposażenia</h2>
+            <span className="text-[10px] text-slate-500">Zaznaczenie magazynowe wypełnia się podczas kontroli</span>
           </div>
 
-          {/* Section 5: Pozostałe komponenty stacji */}
-          <div className="border border-slate-200 rounded-xl p-5 bg-slate-50/60">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-              5. Podsumowanie kompletności pozostałych modułów
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-              {order.items
-                .filter((it) => it.type !== 'ROZDZIELNICA_SN' && it.type !== 'ROZDZIELNICA_NN')
-                .slice(0, 6)
-                .map((it) => {
-                  const statusMeta = STATUS_META[it.status];
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full border-collapse text-left text-[11px] leading-snug">
+              <thead className="bg-slate-100 text-slate-800">
+                <tr>
+                  <th className="w-8 border border-slate-400 px-2 py-2 text-center">Lp.</th>
+                  <th className="w-[18%] border border-slate-400 px-2 py-2">Pozycja</th>
+                  <th className="border border-slate-400 px-2 py-2">Parametry / specyfikacja</th>
+                  <th className="w-[12%] border border-slate-400 px-2 py-2">Status realizacji</th>
+                  <th className="w-[10%] border border-slate-400 px-2 py-2 text-center">Odnaleziono</th>
+                  <th className="w-[17%] border border-slate-400 px-2 py-2">Lokalizacja / uwagi magazynu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => {
+                  const details = getItemDetails(item);
+                  const meta = STATUS_META[item.status];
                   return (
-                    <div key={it.id} className="p-2.5 bg-white rounded-lg border border-slate-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono font-bold text-[11px] text-slate-600">
-                          {it.shortName}
-                        </span>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${statusMeta.bgBadge} ${statusMeta.textBadge}`}>
-                          {statusMeta.shortLabel}
-                        </span>
-                      </div>
-                      <p className="text-[11px] font-medium text-slate-800 truncate">{it.name}</p>
-                    </div>
+                    <tr key={item.id} className="break-inside-avoid align-top">
+                      <td className="border border-slate-300 px-2 py-2 text-center font-mono">{order.items.indexOf(item) + 1}</td>
+                      <td className="border border-slate-300 px-2 py-2">
+                        <strong className="block text-slate-900">{item.name || item.shortName}</strong>
+                        <span className="mt-0.5 block text-[9px] text-slate-500">{item.type}</span>
+                        {item.orderDate && <span className="mt-1 block text-[9px] text-slate-600">Zlecono: {formatDate(item.orderDate)}</span>}
+                        {item.plannedDate && <span className="block text-[9px] text-slate-600">Plan: {formatDate(item.plannedDate)}</span>}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-2">
+                        {details.length ? <ul className="space-y-0.5">{details.map((detail, detailIndex) => <li key={detailIndex}>{detail}</li>)}</ul> : <span className="text-slate-400">Brak uzupełnionych parametrów</span>}
+                        {item.notes && <p className="mt-1 border-t border-dashed border-slate-300 pt-1"><strong>Uwagi do pozycji:</strong> {item.notes}</p>}
+                        {item.attachments?.length > 0 && <p className="mt-1 text-[9px] text-slate-600"><strong>Załączniki:</strong> {item.attachments.map((attachment) => attachment.name).filter(Boolean).join(', ')}</p>}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-2">
+                        <span className="font-bold">{statusLabel(item.status)}</span>
+                        {item.completedDate && <span className="mt-1 block text-[9px] text-slate-600">Data: {formatDate(item.completedDate)}</span>}
+                        {meta?.label === 'Problem' && <span className="mt-1 block font-semibold text-rose-700">Wymaga wyjaśnienia</span>}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-2 text-center">
+                        <span className="inline-block h-5 w-5 border-2 border-slate-500" aria-label="Pole do odhaczenia" />
+                        <span className="mt-1 block text-[9px] text-slate-500">□ Tak</span>
+                      </td>
+                      <td className="border border-slate-300 px-2 py-2">
+                        <div className="min-h-9" />
+                        <div className="border-b border-dotted border-slate-400" />
+                      </td>
+                    </tr>
                   );
                 })}
-            </div>
+                {items.length === 0 && <tr><td colSpan={6} className="border border-slate-300 px-3 py-8 text-center text-slate-500">Brak pozycji pasujących do wyszukiwania.</td></tr>}
+              </tbody>
+            </table>
           </div>
 
-          {/* Document Signatures & Engineering Approval */}
-          <div className="pt-6 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs text-slate-600">
-            <div>
-              <p className="font-bold text-slate-800 mb-8">Sporządził / Inżynier Projektu ENCO:</p>
-              <div className="border-t border-slate-400 pt-1 text-[11px]">
-                Dział Realizacji i Prefabrykacji ENCO FLOW
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-slate-800 mb-8">Zatwierdzenie Techniczne Klienta:</p>
-              <div className="border-t border-slate-400 pt-1 text-[11px]">
-                Podpis i pieczęć upoważnionego przedstawiciela
-              </div>
-            </div>
+          <div className="mt-5 grid grid-cols-2 gap-8 border-t border-slate-300 pt-4 text-[11px] text-slate-700">
+            <div><p className="mb-7 font-semibold">Kontrolę przeprowadził(a):</p><div className="border-t border-slate-500 pt-1">Imię i nazwisko / data</div></div>
+            <div><p className="mb-7 font-semibold">Potwierdzenie kompletacji:</p><div className="border-t border-slate-500 pt-1">Podpis</div></div>
           </div>
+          {order.generalNotes && <div className="mt-4 rounded border border-slate-300 p-3 text-[11px]"><strong>Uwagi ogólne do zlecenia:</strong><p className="mt-1 whitespace-pre-wrap">{order.generalNotes}</p></div>}
+          <p className="mt-4 text-[9px] text-slate-500">Status realizacji pochodzi z ENCO Flow. Pole „Odnaleziono” i lokalizacja służą do fizycznej kontroli magazynowej i nie zmieniają statusu w systemie.</p>
         </div>
 
-        {/* Footer controls (hidden in print) */}
-        <div className="print:hidden px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-xs text-slate-500">
-            Wydruk automatycznie formatuje ofertę do strony A4 (Ctrl+P / Command+P).
-          </span>
+        <div className="print:hidden flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-3">
+          <span className="text-xs text-slate-500">Wydrukuj lub zapisz jako PDF z poziomu okna drukowania.</span>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg border border-slate-300 hover:bg-slate-100 cursor-pointer"
-            >
-              Zamknij
-            </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Drukuj dokument</span>
-            </button>
+            <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Zamknij</button>
+            {canDownload && <button type="button" onClick={handlePrint} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-800 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"><Printer className="h-4 w-4" /> Drukuj</button>}
           </div>
         </div>
       </div>
+      <style>{`
+        @media print {
+          @page { size: A4 landscape; margin: 10mm; }
+          html, body { background: #fff !important; }
+          body * { visibility: hidden; }
+          .fixed.inset-0, .fixed.inset-0 * { visibility: visible; }
+          .fixed.inset-0 { position: absolute !important; inset: 0 !important; display: block !important; overflow: visible !important; background: #fff !important; padding: 0 !important; }
+          .fixed.inset-0 > div { width: 100% !important; max-width: none !important; margin: 0 !important; border: 0 !important; box-shadow: none !important; overflow: visible !important; }
+          table { page-break-inside: auto; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
+          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      `}</style>
     </div>
   );
 };
