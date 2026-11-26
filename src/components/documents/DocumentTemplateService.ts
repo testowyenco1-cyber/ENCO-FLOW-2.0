@@ -75,7 +75,10 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
       <h3>Drzwi i ślusarka</h3>
       ${table(['Element', 'Ilość', 'Położenie / opis'], rowsHtml(data.slusarka, ['type', 'quantity', 'position']))}
       <h3>Pozostałe elementy do zamontowania</h3>
-      ${table(['Element', 'Ilość', 'Położenie / opis'], rowsHtml([...data.drobneElementy, ...data.dodatkoweWyposazenie.map((type, i) => ({ id: 'extra-' + i, type, quantity: '1', position: '' }))], ['type', 'quantity', 'position']))}
+      ${table(
+        ['Grupa', 'Element do zamontowania', 'Ilość', 'Miejsce montażu / uwagi'],
+        rowsHtml(getSmallElementRows(data), ['category', 'type', 'quantityWithUnit', 'mountingDetails']),
+      )}
       <h2>3. Kolory i wykończenie elewacji</h2>
       ${table(['Obudowa', 'Ślusarka', 'Dach', 'Drzwi i kraty'], '<tr>' +
         [data.kolorObudowy, data.kolorSlusarki, data.kolorDachu, data.kolorDrzwiKraty].map(cell).map((v) => '<td>' + v + '</td>').join('') + '</tr>')}
