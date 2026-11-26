@@ -16,7 +16,7 @@ const rowsHtml = (rows: DocumentRow[], columns: string[]) => {
   if (!visible.length) return '<tr><td colspan="' + columns.length + '">Nie wskazano pozycji.</td></tr>';
   return visible.map((row) => '<tr>' + columns.map((key) => {
     const value = key === 'type' ? row.type : key === 'quantity' ? row.quantity : key === 'position'
-      ? [row.position, row.cableType, row.diameter ? 'Ø ' + row.diameter : '', row.sealType, row.sealVariant, row.notes].filter(Boolean).join(' · ')
+      ? [row.position, row.wings, row.openingSide ? 'otwierane ' + row.openingSide : '', row.width && row.height ? row.width + ' × ' + row.height + ' mm' : '', row.ventilationGrille ? 'krata wentylacyjna' : '', row.intakeFan ? 'wentylator nawiewny' : '', row.exhaustFan ? 'wentylator wyciągowy' : '', row.cableType ? 'kabel ' + row.cableType : '', row.diameter ? 'Ø ' + row.diameter : '', row.sealType, row.sealVariant, row.notes].filter(Boolean).join(' · ')
       : row[key];
     return '<td>' + cell(value) + '</td>';
   }).join('') + '</tr>').join('');
@@ -63,6 +63,7 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
       ${paragraph('Tynk', data.tynk)}
       ${paragraph('Struktura', data.tynkStruktura)}
       ${paragraph('Powłoka antygraffiti', data.antygraffiti)}
+      ${paragraph('Dodatkowe opisy / wymagania wykonawcze', data.opisyDodatkowe)}
       <h2>4. Przepusty kablowe i otwory</h2>
       <h3>Przepusty</h3>
       ${table(['Typ', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(data.przepusty, ['type', 'quantity', 'position']))}
