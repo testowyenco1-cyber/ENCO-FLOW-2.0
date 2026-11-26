@@ -239,8 +239,14 @@ const ORDER_BOUND_FIELD_CONFIG: Record<string, { sourcePath: string; readOnly: b
 function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate {
   // Migracja starszego wzorca obudowy: dołącz nowe pola i sekcje bez usuwania
   // pól dodanych wcześniej przez administratora.
-  const oldStandard = template.contentHtml?.includes('7. ELEMENTY DOSTARCZANE</h2><p><strong>Warszawa:</strong> {{form.dostawaWarszawa}}');
-  if (oldStandard) template = { ...template, contentHtml: DEFAULT_TEMPLATE.contentHtml };
+  const legacyContent = String(template.contentHtml || '');
+  const isLegacyDefaultLayout = !legacyContent || (
+    Number(template.version || 1) <= 1 &&
+    legacyContent.includes('<h2>OBUDOWA</h2>') &&
+    legacyContent.includes('{{form.slusarka}}') &&
+    legacyContent.includes('{{form.przepusty}}')
+  );
+  if (isLegacyDefaultLayout) template = { ...template, contentHtml: DEFAULT_TEMPLATE.contentHtml };
   const mergedFields = (template.fields || []).map((field) => {
     const defaults = TEMPLATE_FIELDS.find((candidate) => candidate.id === field.id);
     if (!defaults) return field;
@@ -251,7 +257,6 @@ function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate
   const legacyDefaultIds = new Set(['naglowek', 'opis', 'drzwi', 'dach', 'otwory', 'kolory', 'urzadzenia', 'dostawy']);
   const customSections = (template.sections || []).filter((section) => !legacyDefaultIds.has(section.id));
   const mergedSections = [...DEFAULT_TEMPLATE.sections.map(clone), ...customSections];
-  if (!String(template.contentHtml || '').includes('{{derived.smallElements}}')) template = { ...template, contentHtml: DEFAULT_TEMPLATE.contentHtml };
   template = { ...template, sections: mergedSections, fields: mergedFields.map((field) => ['dostawaWarszawa', 'dostawaPyskowice'].includes(field.id) ? { ...field, type: 'delivery-list' as FieldType } : field) };
   return {
     ...template,
@@ -273,7 +278,7 @@ function normalizeOrderBoundFields(template: DocumentTemplate): DocumentTemplate
 const DEFAULT_TEMPLATE: DocumentTemplate = {
   key: 'zlecenie-obudowy',
   title: 'Zlecenie obudowy',
-  version: 1,
+  version: 2,
   sections: [
     { id: 'naglowek', title: 'Dane dokumentu', fieldIds: ['typBudowli', 'typObudowy', 'rozmiar', 'nazwaObiektu', 'oznaczenieStacji', 'numerZD', 'dataZD', 'numerZL', 'dataWystawienia', 'terminRealizacji', 'dotExtra'], columns: 2 },
     { id: 'opis', title: 'Typ obudowy i zakres wykonania', fieldIds: ['opisObudowy', 'dlugosc', 'szerokosc', 'wysokosc', 'konstrukcja', 'scianyIlosc', 'scianyKlasa', 'dachKlasa'], columns: 2 },
@@ -348,12 +353,6 @@ const blankForm = (item?: OrderItem, order?: Order): FormData => {
     kolorDrzwiKraty: String(d.kolorDrzwiKraty || ''),
     antygraffiti: d.antygraffiti === true ? 'Tak' : d.antygraffiti === false && d.antygraffiti !== undefined ? 'Nie' : String(d.antygraffitiStatus || ''),
     tynk: String(d.tynk || ''),
-    tynkStruktura: String(d.tynkStruktura || d.strukturaTynku || ''),
-    drobneElementy: Array.isArray(d.drobneElementy) ? d.drobneElementy : [],
-    montazWykonawca: String(d.montazWykonawca || ''),
-    montazTermin: String(d.montazTermin || ''),
-    montazOdpowiedzialny: String(d.montazOdpowiedzialny || ''),
-    montazUwagi: String(d.montazUwagi || ''),
     dodatkoweWyposazenie: Array.isArray(d.dodatkoweWyposazenie) ? d.dodatkoweWyposazenie : [],
     przepusty: Array.isArray(d.przepusty) ? d.przepusty : [],
     otwory: Array.isArray(d.otwory) ? d.otwory : [],
@@ -1313,6 +1312,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
   const changedKeys = Object.keys(changedLabels).filter((key) => key === '__templateSnapshot' ? templateSnapshotChanged : isFormFieldChanged(key));
   if (JSON.stringify(form.customFields) !== JSON.stringify(originalForm.customFields)) changedKeys.push('customFields');
   const showChangeValue = (key: string, value: any) => {
+     if (key === 'documentContentHtml') return 'Treść dokumentu została ręcznie poprawiona na podglądzie.';
     if (key === 'customFields') return Object.keys(value || {}).map((fieldKey) => fieldKey + ': ' + displayValue(value[fieldKey])).join('; ') || '—';
     if (key === '__templateSnapshot') {
       if (!value) return 'Brak indywidualnej kopii wzorca';
@@ -1582,7 +1582,7 @@ export const OrderDocumentFormModal: React.FC<Props> = ({ order, isOpen, onClose
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3 sm:p-5 xl:w-[48%] xl:flex-none print:hidden">
         <div className="mx-auto max-w-3xl space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-lg font-bold text-slate-900">{mode === 'form' ? 'Uzupełnij dokument' : mode === 'custom' ? 'Dopasuj bieżący dokument' : 'Edytuj wzorzec dokumentu'}</h2><p className="mt-1 text-xs text-slate-500">{mode === 'custom' ? 'Zmiany struktury i treści pozostają tylko w tym formularzu.' : mode === 'admin' ? 'Publikacja zastosuje wzorzec także do bieżącego formularza. Wcześniej zapisane formularze w innych zleceniach pozostaną bez zmian.' : 'Edytuj pola formularza; podgląd po prawej aktualizuje się na bieżąco.'}</p></div>
+            <div><h2 className="text-lg font-bold text-slate-900">{mode === 'form' ? 'Uzupełnij dane dokumentu' : mode === 'custom' ? 'Dopasuj bieżący dokument' : 'Edytuj wzorzec dokumentu'}</h2><p className="mt-1 text-xs text-slate-500">{mode === 'custom' ? 'Zmiany struktury i treści pozostają tylko w tym formularzu.' : mode === 'admin' ? 'Publikacja zastosuje wzorzec także do bieżącego formularza. Wcześniej zapisane formularze w innych zleceniach pozostaną bez zmian.' : 'Uzupełnij formularz po lewej. Gotowy dokument poprawiaj bezpośrednio na podglądzie po prawej.'}</p></div>
             {mode === 'form' ? <div className="flex flex-wrap gap-2">
               <button type="button" disabled={!canEdit} onClick={openCustomEdit} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"><FileText size={14}/> Custom Edit</button>
               {isAdmin && <button type="button" onClick={openAdminEdit} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"><ShieldCheck size={14}/> Admin Edit</button>}
