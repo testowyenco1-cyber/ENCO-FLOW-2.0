@@ -66,6 +66,7 @@ export interface EnclosureDocumentData {
   customFields: Record<string, unknown>;
   documentContentHtml?: string;
   documentContentUpdatedAt?: string;
+  documentContentManual?: boolean;
   __sourceSnapshotApplied?: boolean;
   __templateVersion?: number;
   [key: string]: unknown;
@@ -165,11 +166,13 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
   const descriptions = order.items.find((candidate) => candidate.type === 'OPISY')?.details || {};
   const doorDetails = order.items.find((candidate) => candidate.type === 'DRZWI')?.details || {};
   const doorRows = sourceRows(order, 'DRZWI');
+  const stationSize = firstText(details.rozmiar, order.stationSize);
+  const stationType = firstText(details.typObudowy, details.typ, stationSize.match(/^(BEK|NZ)\\b/i)?.[1] || '');
 
   return {
     typBudowli: firstText(details.typBudowli, 'Stacja transformatorowa'),
-    typObudowy: firstText(details.typObudowy, details.typ, ''),
-    rozmiar: firstText(details.rozmiar, order.stationSize),
+    typObudowy: stationType,
+    rozmiar: stationSize,
     nazwaObiektu: order.projectName || '',
     oznaczenieStacji: firstText(details.oznaczenieStacji, details.oznaczenie),
     numerZD: firstText(details.numerZD, details.nrZD),
@@ -236,9 +239,14 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
   // Legacy forms are imported once. Once marked, blank fields remain blank instead
   // of silently pulling changed source values from the live order on every open.
   const savedData = saved as Partial<EnclosureDocumentData>;
-  const hydrated = savedData.__sourceSnapshotApplied
-    ? { ...base, ...savedData }
-    : { ...base, ...savedData, __sourceSnapshotApplied: true };
+  const hydrated: EnclosureDocumentData = { ...base, ...savedData, __sourceSnapshotApplied: true };
+  if (!savedData.__sourceSnapshotApplied) {
+    for (const [key, sourceValue] of Object.entries(base)) {
+      const savedValue = (savedData as Record<string, unknown>)[key];
+      const empty = savedValue === undefined || savedValue === null || savedValue === '' || (Array.isArray(savedValue) && savedValue.length === 0);
+      if (empty && sourceValue !== undefined) (hydrated as Record<string, unknown>)[key] = sourceValue;
+    }
+  }
 
   hydrated.customFields = { ...base.customFields, ...(savedData.customFields || {}) };
   hydrated.drobneElementy = normalizeDocumentRows(savedData.drobneElementy ?? base.drobneElementy, 'element');
