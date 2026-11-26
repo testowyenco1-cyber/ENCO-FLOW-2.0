@@ -231,10 +231,8 @@ const sourceRows = (order: Order, type: string): DocumentRow[] => {
   const details = related?.details || {};
   const rows = details.documentRows || details.pozycje || details.elementy;
   const enclosure = order.items.find((candidate) => candidate.type === 'OBUDOWA')?.details || {};
-  const station = firstText(enclosure.typObudowy, enclosure.rozmiar, order.stationSize);
-  const isBek = /^BEK\b/i.test(station);
   const normalizeDoorDimensions = (sourceRows: DocumentRow[]) => sourceRows.map((row) => {
-    if (type !== 'DRZWI' || !isBek) return row;
+    if (type !== 'DRZWI') return row;
     const isTransformerDoor = /trafo|transformator/i.test(row.type);
     const isStandardDoor = /drzwi (sn|nn)|drzwi sn i nn/i.test(row.type);
     return {
@@ -249,9 +247,9 @@ const sourceRows = (order: Order, type: string): DocumentRow[] => {
   }
   const name = firstText(details.typ, details.rodzaj, details.kategoria, details.nazwa, details.opis);
   if (!name) return [];
-  const defaultDimensions: { width?: string; height?: string } = isBek && /trafo|transformator/i.test(name)
+  const defaultDimensions: { width?: string; height?: string } = /trafo|transformator/i.test(name)
     ? { width: '1170', height: '2100' }
-    : isBek && /drzwi (sn|nn)|drzwi sn i nn/i.test(name)
+    : /drzwi (sn|nn)|drzwi sn i nn/i.test(name)
       ? { width: '950', height: '2100' }
       : {};
   return normalizeDoorDimensions([makeRow(type.toLowerCase(), 0, {
