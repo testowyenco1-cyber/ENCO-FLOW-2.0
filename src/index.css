@@ -189,63 +189,125 @@ body {
 }
 
 
-/* Jasna kolorystyka aplikacji — bez zmian w układzie i zachowaniu komponentów. */
-.bg-slate-950 { background-color: #f3f6fa !important; }
-.bg-slate-900 { background-color: #ffffff !important; }
-.bg-slate-800 { background-color: #f1f5f9 !important; }
-.bg-slate-700 { background-color: #e2e8f0 !important; }
-.bg-slate-800\/70 { background-color: rgb(241 245 249 / 0.9) !important; }
-
-.border-slate-800,
-.border-slate-700 { border-color: #dbe3ed !important; }
-
-.text-slate-100 { color: #1e293b !important; }
-.text-slate-200 { color: #334155 !important; }
-.text-slate-300 { color: #475569 !important; }
-.text-slate-400 { color: #64748b !important; }
-.text-slate-500 { color: #64748b !important; }
-
-header.bg-slate-900.text-white { color: #172b4d; }
-header nav.bg-slate-900 { color: #172b4d; }
-
-
-/* Korekta kontrastu jasnego motywu: czytelne teksty i wyraźne granice elementów. */
-.bg-slate-950,
-.bg-slate-900,
-.bg-slate-800,
-.bg-slate-700 {
-  color: #1e293b;
+/* ENCO Flow — spójny, jasny motyw o kontrolowanym kontraście. */
+:root {
+  --enco-page: #eef2f6;
+  --enco-surface: #ffffff;
+  --enco-surface-soft: #f5f7fa;
+  --enco-surface-muted: #e9eef4;
+  --enco-text: #243247;
+  --enco-text-secondary: #526176;
+  --enco-text-muted: #65748a;
+  --enco-border: #c5cfdb;
+  --enco-border-soft: #d8e0e9;
+  --enco-blue: #315f96;
+  --enco-blue-strong: #285cae;
+  --enco-amber: #a87522;
+  --enco-green: #28765c;
+  --enco-red: #a94f55;
 }
 
-.bg-slate-950.text-white,
-.bg-slate-900.text-white,
-.bg-slate-800.text-white,
-.bg-slate-700.text-white {
-  color: #1e293b !important;
-}
+/* Neutral surfaces — slate classes are used as structural surfaces in the app. */
+.bg-slate-950 { background-color: var(--enco-page) !important; color: var(--enco-text) !important; }
+.bg-slate-900 { background-color: var(--enco-surface) !important; color: var(--enco-text) !important; }
+.bg-slate-800 { background-color: var(--enco-surface-soft) !important; color: var(--enco-text) !important; }
+.bg-slate-700 { background-color: var(--enco-surface-muted) !important; color: var(--enco-text) !important; }
+.bg-slate-800\\/70 { background-color: rgb(245 247 250 / 0.94) !important; color: var(--enco-text) !important; }
 
+/* Text hierarchy — muted text remains readable at small UI sizes. */
+.text-slate-100,
+.text-slate-200,
+.text-slate-300,
+.text-slate-800,
+.text-slate-900 { color: var(--enco-text) !important; }
+.text-slate-400,
+.text-slate-500,
+.text-slate-600 { color: var(--enco-text-muted) !important; }
+.text-slate-700 { color: var(--enco-text-secondary) !important; }
+
+/* Calm blue accents for links, metadata and secondary actions. */
+.text-blue-200 { color: #b9cde2 !important; }
+.text-blue-400 { color: #8eaccd !important; }
+.text-blue-500 { color: #426f9f !important; }
+.text-blue-600 { color: #315f96 !important; }
+.text-blue-700 { color: #2b5688 !important; }
+.text-blue-800 { color: #284d78 !important; }
+.text-blue-900,
+.text-blue-950 { color: #203e60 !important; }
+.bg-blue-600 { background-color: #315f96 !important; }
+.bg-blue-700 { background-color: #294f80 !important; }
+.border-blue-100,
+.border-blue-200 { border-color: #d4e0ed !important; }
+.border-blue-300,
+.border-blue-400,
+.border-blue-500,
+.border-blue-600 { border-color: #9db5d0 !important; }
+
+/* Borders and separators: visible on white, never luminous. */
 .border-slate-950,
 .border-slate-900,
 .border-slate-800,
 .border-slate-700,
 .border-slate-600,
-.border-slate-500 {
-  border-color: #c5d0de !important;
-}
-
+.border-slate-500 { border-color: var(--enco-border) !important; }
+.border-slate-100,
+.border-slate-200 { border-color: var(--enco-border-soft) !important; }
 .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
-.divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #d1dae5 !important;
-}
+.divide-slate-700 > :not([hidden]) ~ :not([hidden]) { border-color: var(--enco-border-soft) !important; }
 
+/* Status colors remain distinct, with softer fills and restrained outlines. */
+.bg-amber-50,
+.bg-amber-50\\/50,
+.bg-amber-50\\/70,
+.bg-amber-50\\/90 { background-color: #fbf7ed !important; }
+.bg-amber-100 { background-color: #f4ead2 !important; }
+.bg-amber-500 { background-color: #c28a2d !important; }
+.bg-amber-600 { background-color: #a87522 !important; }
+.text-amber-400,
+.text-amber-500,
+.text-amber-600,
+.text-amber-800,
+.text-amber-900,
+.text-amber-950 { color: #89601f !important; }
+.border-amber-100,
+.border-amber-200 { border-color: #eadfc7 !important; }
+.border-amber-300,
+.border-amber-400,
+.border-amber-500,
+.border-amber-600 { border-color: #d7bd8b !important; }
+
+.bg-emerald-50,
+.bg-emerald-50\\/70,
+.bg-emerald-50\\/80 { background-color: #eff7f3 !important; }
+.bg-emerald-100 { background-color: #dceee5 !important; }
+.bg-emerald-600 { background-color: #28765c !important; }
+.text-emerald-400,
+.text-emerald-500,
+.text-emerald-600,
+.text-emerald-800,
+.text-emerald-900 { color: #28694f !important; }
+.border-emerald-100,
+.border-emerald-200 { border-color: #d0e4d9 !important; }
+.border-emerald-300,
+.border-emerald-400,
+.border-emerald-500 { border-color: #9fc9b2 !important; }
+
+.bg-rose-50,
+.bg-rose-50\\/70,
+.bg-rose-50\\/90 { background-color: #fbf1f1 !important; }
+.bg-rose-100 { background-color: #f3dddd !important; }
+.bg-rose-600 { background-color: #ad555b !important; }
+.text-rose-600,
+.text-rose-700,
+.text-rose-800,
+.text-rose-900 { color: #98464d !important; }
+.border-rose-200,
+.border-rose-300,
+.border-rose-400 { border-color: #dfb9bc !important; }
+
+/* Form controls retain readable values and quiet placeholder text. */
 input,
 select,
-textarea {
-  color: #1e293b;
-}
-
+textarea { color: var(--enco-text); }
 input::placeholder,
-textarea::placeholder {
-  color: #64748b;
-  opacity: 1;
-}
+textarea::placeholder { color: var(--enco-text-muted); opacity: 1; }
