@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DocumentRow } from './documentModel';
+import { inferSmallElementCategory, type DocumentRow } from './documentModel';
 
 type Props = {
   title: string;
@@ -46,7 +46,10 @@ export const DocumentRowsEditor: React.FC<Props> = ({
               : 'grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_76px_auto]'}>
               <label className="min-w-0 space-y-1 text-[11px] font-medium text-slate-500">
                 Nazwa elementu
-                <input className={inputClass} value={row.type} disabled={disabled} onChange={(event) => update(index, { type: event.target.value, category: kind === 'door' ? event.target.value : row.category })} placeholder="Wpisz lub wybierz element" list={suggestions.length ? listId : undefined}/>
+                <input className={inputClass} value={row.type} disabled={disabled} onChange={(event) => update(index, {
+                  type: event.target.value,
+                  category: kind === 'door' ? event.target.value : kind === 'small-element' ? inferSmallElementCategory(event.target.value) : row.category,
+                })} placeholder="Wpisz lub wybierz element" list={suggestions.length ? listId : undefined}/>
                 {index === 0 && suggestions.length > 0 && <datalist id={listId}>{suggestions.map((option) => <option key={option} value={option}/>)}</datalist>}
               </label>
               <label className="space-y-1 text-[11px] font-medium text-slate-500">
