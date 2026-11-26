@@ -4,6 +4,7 @@ export interface DocumentRow {
   id: string;
   type: string;
   quantity: string;
+  unit?: string;
   position: string;
   width?: string;
   height?: string;
@@ -125,7 +126,50 @@ export const normalizeDocumentRows = (value: unknown, prefix: string): DocumentR
     : typeof value === 'string' && value.trim()
       ? value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
       : [];
-  return rows.map((row, index) => makeRow(prefix, index, row));
+  return rows.map((row, index) => {
+    const normalized = makeRow(prefix, index, row);
+    return { ...normalized, unit: firstText(normalized.unit, 'szt.') };
+  });
+};
+
+/**
+ * Merge legacy free-text equipment with repeatable rows into one editable list.
+ * Duplicate names are shown once. Quantity annotations from older labels are
+ * split back into quantity and unit fields.
+ */
+export const getSmallElementRows = (
+  data: Pick<EnclosureDocumentData, 'drobneElementy' | 'dodatkoweWyposazenie'>,
+): DocumentRow[] => {
+  const rows = normalizeDocumentRows(data.drobneElementy, 'small-element');
+  const seen = new Set(rows.map((row) => row.type.trim().toLocaleLowerCase('pl-PL')));
+  const legacy = normalizeDocumentRows(data.dodatkoweWyposazenie, 'additional-element');
+
+  for (const row of legacy) {
+    const rawName = row.type.trim();
+    if (!rawName) continue;
+    const quantityMatch = rawName.match(/\s*[—-]\s*(\d+(?:[.,]\d+)?)\s*(szt\.?|kpl\.?|m|mb|m²)\s*$/i);
+    if (quantityMatch) {
+      row.type = rawName.slice(0, quantityMatch.index).trim();
+      row.quantity = quantityMatch[1].replace(',', '.');
+      row.unit = quantityMatch[2].toLocaleLowerCase('pl-PL');
+    }
+    const key = row.type.toLocaleLowerCase('pl-PL');
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    row.category = inferSmallElementCategory(row.type);
+    row.unit = firstText(row.unit, 'szt.');
+    rows.push(row);
+  }
+  return rows;
+};
+
+export const inferSmallElementCategory = (name: string): string => {
+  const value = name.toLocaleLowerCase('pl-PL');
+  if (/dach|chłodnic|anten|lampk|siatk.*dach/.test(value)) return 'Dach';
+  if (/wentyl|krat/.test(value)) return 'Wentylacja';
+  if (/kiesze|schemat|tablic/.test(value)) return 'Wnętrze stacji';
+  if (/hea|profil|wspornik|uchwyt|kotw/.test(value)) return 'Konstrukcja / mocowanie';
+  return 'Pozostałe';
 };
 
 const sourceSummary = (...parts: unknown[]): string => parts.map(asText).filter(Boolean).join(' · ');
