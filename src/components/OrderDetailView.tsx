@@ -26,6 +26,7 @@ import {
   Filter,
   FolderOpen,
   HardDrive,
+  ArrowUp,
 } from 'lucide-react';
 import { UserRoleProfile, USER_PROFILES, canEditItemType, getItemPermissionHint } from '../types/userRole';
 import { getOrderFieldDepartment } from '../utils/departmentOwnership';
@@ -75,6 +76,15 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   const [isTechnicalSheetOpen, setIsTechnicalSheetOpen] = useState(false);
   const [isOrderFilesModalOpen, setIsOrderFilesModalOpen] = useState(false);
   const [selectedFolderForModal, setSelectedFolderForModal] = useState<string>('01_Dokumentacja_Glowna');
+
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const updateVisibility = () => setShowBackToTop(window.scrollY > 500);
+    updateVisibility();
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    return () => window.removeEventListener('scroll', updateVisibility);
+  }, []);
 
   useEffect(() => {
     let targetType = '';
@@ -929,7 +939,20 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
         </div>
       </div>
 
-      </div>\n      <OrderTasksPanel
+      </div>\n      {showBackToTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="Wróć na górę zlecenia"
+          title="Wróć na górę zlecenia"
+          className="fixed bottom-6 right-6 z-40 inline-flex h-11 items-center gap-2 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-slate-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+        >
+          <ArrowUp className="h-4 w-4" />
+          <span>Skocz do góry</span>
+        </button>
+      )}
+
+      <OrderTasksPanel
         orderId={order.id}
         orderNumber={order.orderNumber}
         projectName={order.projectName}
