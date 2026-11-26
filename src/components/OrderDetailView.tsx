@@ -607,7 +607,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 {profile.canEditAll
-                  ? 'Zmiany statusu i parametrów pozostają lokalne. Kliknij „Zapisz zmiany” przy odpowiednim elemencie, aby wysłać je na serwer.'
+                  ? 'Zmiany statusu i parametrów są zapisywane lokalnie. Aby wysłać je na serwer, użyj jednego przycisku „Zapisz zmiany” w lewym panelu.'
                   : `Uprawnienia konta „${profile.name}”: edycja wybranych elementów, podgląd pozostałych.`}
               </p>
             </div>
