@@ -140,7 +140,11 @@ export const normalizeDocumentRows = (value: unknown, prefix: string): DocumentR
 export const getSmallElementRows = (
   data: Pick<EnclosureDocumentData, 'drobneElementy' | 'dodatkoweWyposazenie'>,
 ): DocumentRow[] => {
-  const rows = normalizeDocumentRows(data.drobneElementy, 'small-element');
+  const rows = normalizeDocumentRows(data.drobneElementy, 'small-element')
+    .map((row) => ({
+      ...row,
+      category: firstText(row.category, inferSmallElementCategory(row.type)),
+    }));
   const seen = new Set(rows.map((row) => row.type.trim().toLocaleLowerCase('pl-PL')));
   const legacy = normalizeDocumentRows(data.dodatkoweWyposazenie, 'additional-element');
 
