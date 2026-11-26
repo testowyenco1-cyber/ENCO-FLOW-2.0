@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Order, OrderItem, ItemStatus, Attachment, DoorOrder } from '../types/enco';
 import { OrderStatusBadge, ItemStatusBadge } from './StatusBadge';
 import { StatusSwitcher } from './StatusSwitcher';
@@ -78,6 +78,15 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   const [selectedFolderForModal, setSelectedFolderForModal] = useState<string>('01_Dokumentacja_Glowna');
 
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [isTasksPanelOpen, setIsTasksPanelOpen] = useState(() => {
+    try { return window.localStorage.getItem('enco-flow-order-tasks-panel') !== 'collapsed'; }
+    catch { return true; }
+  });
+
+  const handleTasksPanelOpenChange = useCallback((isOpen: boolean) => {
+    setIsTasksPanelOpen(isOpen);
+    onOrderTasksPanelOpenChange?.(isOpen);
+  }, [onOrderTasksPanelOpenChange]);
 
   useEffect(() => {
     const updateVisibility = () => setShowBackToTop(window.scrollY > 500);
@@ -943,12 +952,12 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          aria-label="Wróć na górę zlecenia"
-          title="Wróć na górę zlecenia"
-          className="fixed bottom-6 right-6 z-40 inline-flex h-11 items-center gap-2 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-slate-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          aria-label="Skocz do góry"
+          title="Skocz do góry"
+          style={{ right: isTasksPanelOpen ? 'min(384px, calc(100vw - 40px))' : '1.5rem' }}
+          className="fixed bottom-6 z-50 flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 shadow-lg shadow-slate-900/10 transition-[right,background-color,border-color,color] duration-300 hover:border-blue-300 hover:bg-slate-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
         >
-          <ArrowUp className="h-4 w-4" />
-          <span>Skocz do góry</span>
+          <ArrowUp className="h-5 w-5" />
         </button>
       )}
 
@@ -958,7 +967,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
         projectName={order.projectName}
         client={order.client}
         currentProfile={profile}
-        onOpenChange={onOrderTasksPanelOpenChange}
+        onOpenChange={handleTasksPanelOpenChange}
       />
 
       {/* Offer Document Generator & Technical Sheet Modal */}
