@@ -23,7 +23,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
   const [data, setData] = useState<EnclosureDocumentData>(() => createEnclosureDocumentData(order));
   const [previewHtml, setPreviewHtml] = useState(() => {
     const initial = createEnclosureDocumentData(order);
-    return sanitizeDocumentHtml(initial.documentContentHtml || buildEnclosureDocumentHtml(initial, order));
+    return sanitizeDocumentHtml(initial.documentContentHtml ?? buildEnclosureDocumentHtml(initial, order));
   });
   const [previewResetToken, setPreviewResetToken] = useState(0);
   const [formChanged, setFormChanged] = useState(false);
@@ -39,7 +39,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
   useEffect(() => {
     const next = createEnclosureDocumentData(order);
     setData(next);
-    setPreviewHtml(sanitizeDocumentHtml(next.documentContentHtml || buildEnclosureDocumentHtml(next, order)));
+    setPreviewHtml(sanitizeDocumentHtml(next.documentContentHtml ?? buildEnclosureDocumentHtml(next, order)));
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
     setPreviewChanged(next.documentContentManual ?? Boolean(next.documentContentHtml));
