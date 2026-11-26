@@ -120,15 +120,27 @@ export const DocumentWorkspace: React.FC<Props> = ({
   };
 
   const regeneratePreview = () => {
-    const html = sharedTemplateRef.current
-      ? renderVersionedEnclosureTemplate(sharedTemplateRef.current, data, order)
+    const activeTemplate = sharedTemplateRef.current;
+    const html = activeTemplate
+      ? renderVersionedEnclosureTemplate(activeTemplate, data, order)
       : buildEnclosureDocumentHtml(data, order);
+    // Explicit regeneration is the only action that replaces an existing
+    // saved/manual body with the currently selected template.
+    const regeneratedData: EnclosureDocumentData = {
+      ...data,
+      documentContentHtml: undefined,
+      documentContentManual: false,
+      __templateVersion: activeTemplate?.version ?? data.__templateVersion,
+      __templateSnapshot: activeTemplate ?? data.__templateSnapshot,
+    };
+    dataRef.current = regeneratedData;
+    setData(regeneratedData);
     setPreviewHtml(sanitizeDocumentHtml(html));
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
     previewChangedRef.current = false;
     setPreviewChanged(false);
-    setMessage('Podgląd odtworzono z aktualnych pól i bieżącego wzorca. Wcześniejsza ręczna edycja została zastąpiona.');
+    setMessage('Podgląd odtworzono z aktualnych pól i wybranej wersji wzorca. Poprzednia ręczna treść zostanie zastąpiona po zatwierdzeniu dokumentu.');
   };
 
   const save = async () => {
@@ -143,7 +155,8 @@ export const DocumentWorkspace: React.FC<Props> = ({
         documentContentManual: previewChanged,
         // Existing documents keep the template version they were created with.
         // A newly published shared template must not be retroactively attached to old HTML.
-        __templateVersion: data.__templateVersion ?? (data.documentContentHtml === undefined ? sharedTemplate?.version : undefined),
+        __templateVersion: data.__templateVersion ?? (data.__templateSnapshot as VersionedDocumentTemplate | undefined)?.version ??
+          (data.documentContentHtml === undefined ? sharedTemplate?.version : undefined),
         __templateSnapshot: data.__templateSnapshot ?? (data.documentContentHtml === undefined ? sharedTemplate ?? undefined : undefined),
         __sourceSnapshotApplied: true,
       };
