@@ -260,7 +260,7 @@ export const renderVersionedEnclosureTemplate = (
       : undefined;
     if (staticField) return escapeHtml(asText(staticField.defaultValue ?? staticField.helpText ?? staticField.label));
     let value = getTemplatePathValue(path, data, order);
-    if ((path === 'form.dataWystawienia' || path === 'form.dataZD' || path === 'form.terminRealizacji') && typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(value)) {
+    if ((path === 'form.dataWystawienia' || path === 'form.dataZD' || path === 'form.terminRealizacji') && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       value = value.slice(8, 10) + '.' + value.slice(5, 7) + '.' + value.slice(0, 4);
     }
     if (Array.isArray(value)) return value.map((entry) => entry && typeof entry === 'object' ? escapeHtml(rowDescription(entry as DocumentRow)) : escapeHtml(asText(entry))).filter(Boolean).join('<br>');
