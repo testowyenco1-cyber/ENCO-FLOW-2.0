@@ -1,0 +1,168 @@
+import * as assert from 'node:assert/strict';
+import { test } from 'node:test';
+import type { Order, OrderItem } from '../src/types/enco';
+import {
+  createEnclosureDocumentData,
+  type EnclosureDocumentData,
+} from '../src/components/documents/documentModel';
+import {
+  buildEnclosureDocumentHtml,
+  renderVersionedEnclosureTemplate,
+  sanitizeDocumentHtml,
+  type VersionedDocumentTemplate,
+} from '../src/components/documents/DocumentTemplateService';
+import { updateOrderWithEnclosureDocument } from '../src/components/documents/DocumentPersistence';
+
+const makeItem = (
+  id: string,
+  type: string,
+  details: Record<string, unknown> = {},
+  plannedDate = '',
+): OrderItem => ({
+  id,
+  orderId: 'order-1',
+  type,
+  name: type,
+  shortName: type,
+  status: 'ORDERED',
+  plannedDate,
+  details,
+  attachments: [],
+  createdAt: '2026-09-01T08:00:00.000Z',
+  updatedAt: '2026-09-01T08:00:00.000Z',
+});
+
+const makeOrder = (items: OrderItem[]): Order => ({
+  id: 'order-1',
+  orderNumber: 'ZL 85/2026',
+  client: 'ENCO Test',
+  projectName: 'TAMA',
+  stationSize: 'NZ 210/240',
+  departureDate: '2026-12-10',
+  generalNotes: '',
+  status: 'IN_PROGRESS',
+  items,
+  attachments: [],
+  createdAt: '2026-09-01T08:00:00.000Z',
+  updatedAt: '2026-09-01T08:00:00.000Z',
+});
+
+const legacyEnclosure = makeItem('obudowa-1', 'OBUDOWA', {
+  typObudowy: 'NZ',
+  rozmiar: 'NZ 210/240',
+  symbolStacji: 'ST-2262',
+  numerZD: '85',
+  dataZD: '2026-09-16',
+  dlugoscObudowy: '2400',
+  szerokoscObudowy: '2100',
+  wysokoscObudowy: '2400',
+  konstrukcjaBudynku: 'Prefabrykat betonowy',
+  scianyREIIlosc: '4',
+  scianyREIKlasa: 'REI 120',
+  typDachu: 'Kopertowy',
+  dachMaterial: 'Żelbet',
+  dachREIKlasa: 'REI 60',
+  kolor: 'RAL 7035',
+  antygraffiti: false,
+  slusarka: [{ id: 'door-legacy', type: 'Drzwi SN', quantity: '2', position: 'Od strony SN' }],
+  drobneElementy: ['Kieszenie na schemat'],
+  dodatkoweWyposazenie: ['Otwór do anteny'],
+  dostawaWarszawa: [{ id: 'w-1', type: 'Most SN z głowicami', quantity: '1', position: 'Warszawa' }],
+  dostawaPyskowice: [{ id: 'p-1', type: 'Zaciski krzyżowe', quantity: '4', position: 'Pyskowice' }],
+  wyposazenieDachu: ['Chłodnica gazów'],
+  siatkaDrzwi: { enabled: true, quantity: '1' },
+  siatkaDach: { enabled: true, quantity: '2' },
+  uwagiDoZleceniaObudowy: 'Zdjęcia stacji umieścić na serwerze.',
+}, '2026-11-30');
+
+test('imports legacy OBUDOWA details and preserves separate delivery lists', () => {
+  const order = makeOrder([
+    legacyEnclosure,
+    makeItem('sn-1', 'ROZDZIELNICA_SN', { producent: 'Siemens', model: '8DJH', liczbaPol: 3 }),
+  ]);
+
+  const data = createEnclosureDocumentData(order);
+
+  assert.equal(data.oznaczenieStacji, 'ST-2262');
+  assert.equal(data.dataZD, '2026-09-16');
+  assert.equal(data.terminRealizacji, '2026-11-30');
+  assert.equal(data.dlugosc, '2400');
+  assert.equal(data.szerokosc, '2100');
+  assert.equal(data.wysokosc, '2400');
+  assert.equal(data.konstrukcja, 'Prefabrykat betonowy');
+  assert.equal(data.scianyIlosc, '4');
+  assert.equal(data.scianyKlasa, 'REI 120');
+  assert.equal(data.dachKlasa, 'REI 60');
+  assert.equal(data.kolorObudowy, 'RAL 7035');
+  assert.equal(data.antygraffiti, 'Nie');
+  assert.equal(data.slusarka[0]?.type, 'Drzwi SN');
+  assert.equal(data.dostawaWarszawa[0]?.type, 'Most SN z głowicami');
+  assert.equal(data.dostawaPyskowice[0]?.type, 'Zaciski krzyżowe');
+  assert.ok(data.dodatkoweWyposazenie.includes('Otwór do anteny'));
+  assert.ok(data.dodatkoweWyposazenie.includes('Chłodnica gazów'));
+  assert.ok(data.dodatkoweWyposazenie.includes('Siatka wygradzająca przy drzwiach — 1 szt.'));
+  assert.ok(data.dodatkoweWyposazenie.includes('Siatka wygradzająca na dachu — 2 szt.'));
+  assert.match(data.rozdzielnicaSN, /Siemens/);
+  assert.equal(data.uwagi, 'Zdjęcia stacji umieścić na serwerze.');
+});
+
+test('dedicated DRZWI position takes priority, with OBUDOWA rows as legacy fallback', () => {
+  const dedicated = makeItem('door-1', 'DRZWI', {
+    documentRows: [{ id: 'door-new', type: 'Drzwi Trafo', quantity: '1', position: 'Strona transformatora' }],
+  });
+  const withDedicated = createEnclosureDocumentData(makeOrder([legacyEnclosure, dedicated]));
+  assert.equal(withDedicated.slusarka[0]?.type, 'Drzwi Trafo');
+
+  const withoutDedicated = createEnclosureDocumentData(makeOrder([legacyEnclosure]));
+  assert.equal(withoutDedicated.slusarka[0]?.type, 'Drzwi SN');
+});
+
+test('document generator and legacy array tokens render structured tables', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data = createEnclosureDocumentData(order);
+  const localHtml = buildEnclosureDocumentHtml(data, order);
+  assert.match(localHtml, /ZLECENIE OBUDOWY/);
+  assert.match(localHtml, /Most SN z głowicami/);
+  assert.match(localHtml, /Zaciski krzyżowe/);
+
+  const template: VersionedDocumentTemplate = {
+    key: 'zlecenie-obudowy',
+    title: 'Test template',
+    version: 3,
+    contentHtml: '<div><h1>{{derived.title}}</h1><p>{{form.numerZD}}</p><div>{{form.slusarka}}</div><div>{{form.dostawaWarszawa}}</div><div>{{derived.openings}}</div></div><script>alert(1)</script>',
+    sections: [],
+    fields: [],
+    rules: [],
+  };
+  const rendered = renderVersionedEnclosureTemplate(template, data, order);
+  assert.match(rendered, /<table>/);
+  assert.match(rendered, /Drzwi SN/);
+  assert.match(rendered, /Most SN z głowicami/);
+  assert.doesNotMatch(rendered, /<script/i);
+  assert.doesNotMatch(rendered, /\{\{form\./);
+});
+
+test('document save writes the instance into the existing OBUDOWA form path', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data: EnclosureDocumentData = {
+    ...createEnclosureDocumentData(order),
+    terminRealizacji: '2026-12-12',
+    uwagi: 'Zatwierdzone uwagi',
+    documentContentHtml: '<div><p>Gotowy dokument</p></div>',
+  };
+  const updated = updateOrderWithEnclosureDocument(order, data);
+  const enclosure = updated.items.find((item) => item.type === 'OBUDOWA');
+
+  assert.ok(enclosure);
+  assert.equal(enclosure.plannedDate, '2026-12-12');
+  assert.equal(enclosure.details.rozmiar, 'NZ 210/240');
+  assert.equal(enclosure.details.formularze.zlecenieObudowy.uwagi, 'Zatwierdzone uwagi');
+  assert.match(enclosure.details.formularze.zlecenieObudowy.documentContentHtml, /Gotowy dokument/);
+  assert.equal(enclosure.details.dachMaterial, 'Żelbet');
+});
+
+test('HTML sanitizer removes event handlers and script tags', () => {
+  const html = sanitizeDocumentHtml('<p onclick="alert(1)">Tekst</p><script>alert(1)</script>');
+  assert.match(html, /Tekst/);
+  assert.doesNotMatch(html, /onclick|<script/i);
+});
