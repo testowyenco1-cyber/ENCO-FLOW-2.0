@@ -99,7 +99,9 @@ async function startServer() {
   const DOOR_CATALOG_FILE = path.join(DATA_DIR, 'door_catalog.json');
   const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
   const ORDER_FORM_DICTIONARIES_FILE = path.join(DATA_DIR, 'order_form_dictionaries.json');
+  const DOCUMENT_FORM_DICTIONARIES_FILE = path.join(DATA_DIR, 'document_form_dictionaries.json');
   const DOCUMENT_FORM_TEMPLATES_FILE = path.join(DATA_DIR, 'document_form_templates.json');
+  if (!fs.existsSync(DOCUMENT_FORM_DICTIONARIES_FILE)) writeJsonAtomically(DOCUMENT_FORM_DICTIONARIES_FILE, {});
   if (!fs.existsSync(DOCUMENT_FORM_TEMPLATES_FILE)) writeJsonAtomically(DOCUMENT_FORM_TEMPLATES_FILE, {});
   if (!fs.existsSync(TASKS_FILE)) fs.writeFileSync(TASKS_FILE, '[]', 'utf-8');
 
@@ -1432,6 +1434,101 @@ async function startServer() {
     }
   });
 
+
+  // Shared dictionaries for the document creator. Defaults stay in code; only user additions are persisted.
+  const DOCUMENT_FORM_DICTIONARY_DEFAULTS: Record<string, string[]> = {
+    doors: [
+      'Drzwi SN i NN', 'Drzwi SN', 'Drzwi NN', 'Drzwi Trafo',
+      'Drzwi do komory transformatora', 'Drzwi techniczne', 'Drzwi wentylacyjne',
+      'Krata wentylacyjna', 'Drzwi jednoskrzydłowe pełne',
+      'Drzwi dwuskrzydłowe z kratą wentylacyjną', 'Drzwi EI 120', 'Drzwi EI 60',
+      'Otwór fi 100 z zaślepieniem',
+    ],
+    smallElements: [
+      'Profil stalowy HEA', 'Kieszeń na schemat', 'Otwór do anteny',
+      'Chłodnica gazów', 'Krata wentylacyjna',
+      'Siatka wygradzająca przy drzwiach', 'Siatka wygradzająca na dachu',
+      'Uchwyt / wspornik', 'Element mocujący', 'Inny element',
+    ],
+    passages: ['BWS 150', 'BWS 100', 'HEA', 'HSI 90', 'HSI 150', 'Przepust kablowy innego typu'],
+    openings: ['Otwór Ø100', 'Otwór kablowy', 'Otwór wentylacyjny', 'Otwór drzwiowy', 'Inny'],
+    deliveriesWarszawa: [
+      'Rozdzielnica SN', 'Rozdzielnica NN', 'Most SN z głowicami', 'Most NN RTS-z',
+      'Wkłady HSD / HRD', 'Czujniki', 'Przyrząd do kolejności faz',
+    ],
+    deliveriesPyskowice: [
+      'Zaciski krzyżowe', 'Rozdzielnica SN Siemens', 'Mosty NN', 'Podkładki antywibracyjne',
+    ],
+  };
+
+  const readDocumentFormDictionaries = (): Record<string, string[]> => {
+    let stored: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(fs.readFileSync(DOCUMENT_FORM_DICTIONARIES_FILE, 'utf-8'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) stored = parsed;
+    } catch {
+      stored = {};
+    }
+
+    const result: Record<string, string[]> = {};
+    for (const [key, defaults] of Object.entries(DOCUMENT_FORM_DICTIONARY_DEFAULTS)) {
+      const additions = Array.isArray(stored[key]) ? stored[key] as unknown[] : [];
+      const seen = new Set(defaults.map((entry) => entry.toLocaleLowerCase('pl-PL')));
+      result[key] = [...defaults];
+      for (const candidate of additions) {
+        if (typeof candidate !== 'string') continue;
+        const value = candidate.trim();
+        const normalized = value.toLocaleLowerCase('pl-PL');
+        if (!value || seen.has(normalized)) continue;
+        seen.add(normalized);
+        result[key].push(value);
+      }
+    }
+    return result;
+  };
+
+  app.get('/api/document-form-dictionaries', requireApiAuth, (_req, res) => {
+    try {
+      return res.json({ success: true, dictionaries: readDocumentFormDictionaries(), timestamp: Date.now() });
+    } catch (err) {
+      console.error('Error reading document-form dictionaries:', err);
+      return res.status(500).json({ success: false, error: 'Błąd odczytu słowników kreatora dokumentów.' });
+    }
+  });
+
+  app.post('/api/document-form-dictionaries/:dictionaryKey', requireItemPermission('OBUDOWA'), (req: any, res) => {
+    try {
+      const dictionaryKey = String(req.params?.dictionaryKey || '');
+      const defaults = DOCUMENT_FORM_DICTIONARY_DEFAULTS[dictionaryKey];
+      const value = typeof req.body?.value === 'string' ? req.body.value.trim() : '';
+      if (!defaults) return res.status(404).json({ success: false, error: 'Nieznana lista słownika dokumentów.' });
+      if (!value || value.length > 120 || /[\\r\\n\\t]/.test(value)) {
+        return res.status(400).json({ success: false, error: 'Nazwa pozycji musi mieć od 1 do 120 znaków.' });
+      }
+
+      let stored: Record<string, unknown> = {};
+      try {
+        const parsed = JSON.parse(fs.readFileSync(DOCUMENT_FORM_DICTIONARIES_FILE, 'utf-8'));
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) stored = parsed;
+      } catch {
+        stored = {};
+      }
+
+      const current = readDocumentFormDictionaries()[dictionaryKey] || defaults;
+      if (current.some((entry) => entry.toLocaleLowerCase('pl-PL') === value.toLocaleLowerCase('pl-PL'))) {
+        return res.status(409).json({ success: false, error: 'Taka pozycja znajduje się już w wybranym słowniku.' });
+      }
+
+      const additions = Array.isArray(stored[dictionaryKey]) ? (stored[dictionaryKey] as unknown[]).filter((entry): entry is string => typeof entry === 'string') : [];
+      additions.push(value);
+      stored[dictionaryKey] = additions;
+      writeJsonAtomically(DOCUMENT_FORM_DICTIONARIES_FILE, stored);
+      return res.json({ success: true, dictionaries: readDocumentFormDictionaries(), timestamp: Date.now() });
+    } catch (err) {
+      console.error('Error saving document-form dictionary:', err);
+      return res.status(500).json({ success: false, error: 'Błąd zapisu słownika kreatora dokumentów.' });
+    }
+  });
 
   // Versioned document-form templates. Reading requires a valid session; publishing is administrator-only.
   const ALLOWED_DOCUMENT_TEMPLATE_KEYS = new Set([
