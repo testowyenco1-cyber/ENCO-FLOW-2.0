@@ -89,9 +89,67 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
     </div>`;
 };
 
-export const sanitizeDocumentHtml = (html: string): string => html
-  .replace(/<\s*(script|iframe|object|embed|svg|form)\b[^>]*>[\s\S]*?<\/\s*\1\s*>/gi, '')
-  .replace(/<\s*(script|iframe|object|embed|svg|form)\b[^>]*\/?>/gi, '')
-  .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-  .replace(/\s+(href|src)\s*=\s*("|')\s*javascript:[\s\S]*?\2/gi, '')
-  .slice(0, 500000);
+export const sanitizeDocumentHtml = (html: string): string => {
+  const source = String(html || '').slice(0, 500000);
+  if (typeof DOMParser === 'undefined') {
+    return source
+      .replace(/<\\s*(script|style|iframe|object|embed|svg|math|form)\\b[^>]*>[\\s\\S]*?<\\/\\s*\\1\\s*>/gi, '')
+      .replace(/<\\s*(script|style|iframe|object|embed|svg|math|form)\\b[^>]*\\/?>/gi, '')
+      .replace(/\\s+on[a-z]+\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)/gi, '')
+      .replace(/\\s+(href|src)\\s*=\\s*("|')\\s*(javascript|data):[\\s\\S]*?\\2/gi, '');
+  }
+
+  const parsed = new DOMParser().parseFromString(source, 'text/html');
+  const allowedTags = new Set([
+    'DIV', 'P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'H1', 'H2', 'H3', 'H4',
+    'UL', 'OL', 'LI', 'BLOCKQUOTE', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR',
+    'TH', 'TD', 'SPAN', 'HR',
+  ]);
+  const dangerousTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'LINK', 'META']);
+  const allowedClasses = new Set([
+    'document-sheet', 'document-brandline', 'document-kicker', 'document-title', 'document-footer',
+  ]);
+  const allowedStyles = new Set([
+    'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color',
+    'text-align', 'text-decoration', 'line-height', 'margin', 'margin-top', 'margin-bottom',
+    'margin-left', 'margin-right', 'padding', 'padding-top', 'padding-bottom', 'padding-left',
+    'padding-right', 'border', 'border-top', 'border-bottom', 'border-left', 'border-right',
+    'border-collapse', 'border-spacing', 'border-color', 'border-width', 'border-style',
+    'width', 'height', 'min-width', 'vertical-align', 'letter-spacing',
+  ]);
+
+  const cleanNode = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.textContent || '');
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const element = node as HTMLElement;
+    if (dangerousTags.has(element.tagName)) return '';
+    const children = Array.from(element.childNodes).map(cleanNode).join('');
+    if (!allowedTags.has(element.tagName)) return children;
+
+    let attributes = '';
+    const classNames = (element.getAttribute('class') || '').split(/\\s+/).filter((name) => allowedClasses.has(name));
+    if (classNames.length) attributes += ' class="' + escapeHtml(classNames.join(' ')) + '"';
+
+    const style = element.getAttribute('style');
+    if (style) {
+      const safeStyle = style.split(';').map((entry) => entry.trim()).filter(Boolean).filter((entry) => {
+        const colon = entry.indexOf(':');
+        if (colon < 0) return false;
+        const name = entry.slice(0, colon).trim().toLowerCase();
+        const value = entry.slice(colon + 1).trim();
+        return allowedStyles.has(name) && !/url\\s*\\(|expression|javascript:|behavior\\s*:/i.test(value);
+      }).join('; ');
+      if (safeStyle) attributes += ' style="' + escapeHtml(safeStyle) + '"';
+    }
+
+    if (['TD', 'TH'].includes(element.tagName)) {
+      for (const attribute of ['colspan', 'rowspan']) {
+        const raw = element.getAttribute(attribute);
+        if (raw && /^\\d{1,2}$/.test(raw)) attributes += ' ' + attribute + '="' + raw + '"';
+      }
+    }
+    return '<' + element.tagName.toLowerCase() + attributes + '>' + children + '</' + element.tagName.toLowerCase() + '>';
+  };
+
+  return Array.from(parsed.body.childNodes).map(cleanNode).join('').slice(0, 500000);
+};
