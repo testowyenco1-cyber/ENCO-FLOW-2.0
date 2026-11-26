@@ -1,5 +1,5 @@
 import type { Order } from '../../types/enco';
-import type { EnclosureDocumentData, DocumentRow } from './documentModel';
+import { getSmallElementRows, type EnclosureDocumentData, type DocumentRow } from './documentModel';
 
 const asText = (value: unknown): string => {
   if (value === undefined || value === null) return '';
@@ -23,9 +23,15 @@ const rowsHtml = (rows: DocumentRow[], columns: string[]) => {
   const visible = rows.filter((row) => row.type.trim());
   if (!visible.length) return '<tr><td colspan="' + columns.length + '">Nie wskazano pozycji.</td></tr>';
   return visible.map((row) => '<tr>' + columns.map((key) => {
-    const value = key === 'type' ? row.type : key === 'quantity' ? row.quantity : key === 'position'
-      ? [row.position, row.wings, row.openingSide ? 'otwierane ' + row.openingSide : '', row.width && row.height ? row.width + ' × ' + row.height + ' mm' : '', row.ventilationGrille ? 'krata wentylacyjna' : '', row.intakeFan ? 'wentylator nawiewny' : '', row.exhaustFan ? 'wentylator wyciągowy' : '', row.cableType ? 'kabel ' + row.cableType : '', row.diameter ? 'Ø ' + row.diameter : '', row.sealType, row.sealVariant, row.notes].filter(Boolean).join(' · ')
-      : row[key];
+    const value = key === 'type' ? row.type
+      : key === 'quantity' ? row.quantity
+      : key === 'unit' ? row.unit || 'szt.'
+      : key === 'category' ? row.category
+      : key === 'mountingLocation' ? row.position
+      : key === 'notes' ? row.notes
+      : key === 'position'
+        ? [row.position, row.wings, row.openingSide ? 'otwierane ' + row.openingSide : '', row.width && row.height ? row.width + ' × ' + row.height + ' mm' : '', row.ventilationGrille ? 'krata wentylacyjna' : '', row.intakeFan ? 'wentylator nawiewny' : '', row.exhaustFan ? 'wentylator wyciągowy' : '', row.cableType ? 'kabel ' + row.cableType : '', row.diameter ? 'Ø ' + row.diameter : '', row.sealType, row.sealVariant, row.notes].filter(Boolean).join(' · ')
+        : row[key];
     return '<td>' + cell(value) + '</td>';
   }).join('') + '</tr>').join('');
 };
@@ -219,8 +225,11 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     return table(['Dostawca', 'Element', 'Ilość', 'Uwagi'], rowsHtml(rows, ['position', 'type', 'quantity', 'notes']));
   }
   if (path === 'derived.smallElements') {
-    const rows = [...data.drobneElementy, ...data.dodatkoweWyposazenie.map((type, index) => ({ id: 'extra-' + index, type, quantity: '1', position: '' }))];
-    return table(['Element', 'Ilość', 'Opis'], rowsHtml(rows, ['type', 'quantity', 'position']));
+    const rows = getSmallElementRows(data);
+    return table(
+      ['Grupa', 'Element do zamontowania', 'Ilość', 'Jednostka', 'Miejsce montażu', 'Uwagi / parametry'],
+      rowsHtml(rows, ['category', 'type', 'quantity', 'unit', 'mountingLocation', 'notes']),
+    );
   }
   if (path === 'derived.colours') {
     return table(['Obudowa', 'Ślusarka', 'Dach', 'Drzwi i kraty'], '<tr>' + [data.kolorObudowy, data.kolorSlusarki, data.kolorDachu, data.kolorDrzwiKraty].map(cell).map((value) => '<td>' + value + '</td>').join('') + '</tr>') +
@@ -282,8 +291,11 @@ export const renderVersionedEnclosureTemplate = (
         return '<p><strong>Dostawca:</strong> ' + supplier + '</p>' +
           table(['Element', 'Ilość', 'Lokalizacja / uwagi'], rowsHtml(rows, ['type', 'quantity', 'position']));
       }
-      if (path === 'form.drobneElementy') {
-        return table(['Element', 'Ilość', 'Opis'], rowsHtml(rows, ['type', 'quantity', 'position']));
+      if (path === 'form.drobneElementy' || path === 'form.dodatkoweWyposazenie') {
+        return table(
+          ['Grupa', 'Element do zamontowania', 'Ilość', 'Jednostka', 'Miejsce montażu', 'Uwagi / parametry'],
+          rowsHtml(getSmallElementRows(data), ['category', 'type', 'quantity', 'unit', 'mountingLocation', 'notes']),
+        );
       }
       return value.map((entry) => entry && typeof entry === 'object'
         ? escapeHtml(rowDescription(entry as DocumentRow))
