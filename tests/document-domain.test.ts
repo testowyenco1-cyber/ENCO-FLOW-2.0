@@ -113,9 +113,13 @@ test('dedicated DRZWI position takes priority, with OBUDOWA rows as legacy fallb
   });
   const withDedicated = createEnclosureDocumentData(makeOrder([legacyEnclosure, dedicated]));
   assert.equal(withDedicated.slusarka[0]?.type, 'Drzwi Trafo');
+  assert.equal(withDedicated.slusarka[0]?.width, '1170');
+  assert.equal(withDedicated.slusarka[0]?.height, '2100');
 
   const withoutDedicated = createEnclosureDocumentData(makeOrder([legacyEnclosure]));
   assert.equal(withoutDedicated.slusarka[0]?.type, 'Drzwi SN');
+  assert.equal(withoutDedicated.slusarka[0]?.width, '950');
+  assert.equal(withoutDedicated.slusarka[0]?.height, '2100');
 });
 
 test('small elements merge legacy extras into one categorized list with quantities', () => {
