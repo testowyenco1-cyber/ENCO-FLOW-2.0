@@ -226,22 +226,22 @@ const relatedSummary = (order: Order, type: string): string => {
   }
 };
 
+const applyDefaultDoorDimensions = (rows: DocumentRow[]): DocumentRow[] => rows.map((row) => {
+  const isTransformerDoor = /trafo|transformator/i.test(row.type);
+  const isStandardDoor = /drzwi (sn|nn)|drzwi sn i nn/i.test(row.type);
+  return {
+    ...row,
+    width: row.width || (isTransformerDoor ? '1170' : isStandardDoor ? '950' : ''),
+    height: row.height || ((isTransformerDoor || isStandardDoor) ? '2100' : ''),
+    category: row.category || row.type,
+  };
+});
+
 const sourceRows = (order: Order, type: string): DocumentRow[] => {
   const related = order.items.find((candidate) => candidate.type === type);
   const details = related?.details || {};
   const rows = details.documentRows || details.pozycje || details.elementy;
-  const enclosure = order.items.find((candidate) => candidate.type === 'OBUDOWA')?.details || {};
-  const normalizeDoorDimensions = (sourceRows: DocumentRow[]) => sourceRows.map((row) => {
-    if (type !== 'DRZWI') return row;
-    const isTransformerDoor = /trafo|transformator/i.test(row.type);
-    const isStandardDoor = /drzwi (sn|nn)|drzwi sn i nn/i.test(row.type);
-    return {
-      ...row,
-      width: row.width || (isTransformerDoor ? '1170' : isStandardDoor ? '950' : ''),
-      height: row.height || ((isTransformerDoor || isStandardDoor) ? '2100' : ''),
-      category: row.category || row.type,
-    };
-  });
+  const normalizeDoorDimensions = type === 'DRZWI' ? applyDefaultDoorDimensions : (sourceRows: DocumentRow[]) => sourceRows;
   if (rows && (!Array.isArray(rows) || rows.length > 0)) {
     return normalizeDoorDimensions(normalizeDocumentRows(rows, type.toLowerCase()));
   }
@@ -277,7 +277,7 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
   // DRZWI position when it contains rows, otherwise retain that legacy list.
   const doorRows = relatedDoorRows.length
     ? relatedDoorRows
-    : normalizeDocumentRows(details.slusarka, 'door');
+    : applyDefaultDoorDimensions(normalizeDocumentRows(details.slusarka, 'door'));
   const stationSize = firstText(details.rozmiar, order.stationSize);
   const stationType = firstText(details.typObudowy, details.typ, stationSize.match(/^(BEK|NZ)\b/i)?.[1] || '');
   const stationVariant = stationSize && stationType && stationSize.toUpperCase().startsWith(stationType.toUpperCase())
