@@ -269,7 +269,26 @@ export const renderVersionedEnclosureTemplate = (
     if ((path === 'form.dataWystawienia' || path === 'form.dataZD' || path === 'form.terminRealizacji') && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       value = value.slice(8, 10) + '.' + value.slice(5, 7) + '.' + value.slice(0, 4);
     }
-    if (Array.isArray(value)) return value.map((entry) => entry && typeof entry === 'object' ? escapeHtml(rowDescription(entry as DocumentRow)) : escapeHtml(asText(entry))).filter(Boolean).join('<br>');
+    if (Array.isArray(value)) {
+      const rows = value.filter((entry) => entry && typeof entry === 'object') as DocumentRow[];
+      if (path === 'form.slusarka') {
+        return table(['Element', 'Ilość', 'Położenie / opis'], rowsHtml(rows, ['type', 'quantity', 'position']));
+      }
+      if (path === 'form.przepusty' || path === 'form.otwory') {
+        return table(['Typ', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(rows, ['type', 'quantity', 'position']));
+      }
+      if (path === 'form.dostawaWarszawa' || path === 'form.dostawaPyskowice') {
+        const supplier = path.endsWith('Warszawa') ? 'Warszawa' : 'Pyskowice';
+        return '<p><strong>Dostawca:</strong> ' + supplier + '</p>' +
+          table(['Element', 'Ilość', 'Lokalizacja / uwagi'], rowsHtml(rows, ['type', 'quantity', 'position']));
+      }
+      if (path === 'form.drobneElementy') {
+        return table(['Element', 'Ilość', 'Opis'], rowsHtml(rows, ['type', 'quantity', 'position']));
+      }
+      return value.map((entry) => entry && typeof entry === 'object'
+        ? escapeHtml(rowDescription(entry as DocumentRow))
+        : escapeHtml(asText(entry))).filter(Boolean).join('<br>');
+    }
     if (value && typeof value === 'object') return escapeHtml(asText(value));
     return escapeHtml(value === undefined || value === null || value === '' ? '—' : asText(value)).replace(/\r\n?|\n/g, '<br>');
   });
