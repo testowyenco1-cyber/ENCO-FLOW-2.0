@@ -307,9 +307,55 @@ test('colour summary only displays the elements with an explicitly supplied colo
 
   const rendered = renderVersionedEnclosureTemplate(template, data, order);
 
-  assert.ok(rendered.includes('Obudowa / elewacja'));
+  assert.ok(rendered.includes('Kolor elewacji'));
   assert.match(rendered, /RAL 7035/);
-  assert.doesNotMatch(rendered, /Ślusarka|Dach|Drzwi i kraty/);
+  assert.doesNotMatch(rendered, /Kolor dachu i ślusarki/);
+});
+
+test('enclosure colours default to RAL 1013 and shared roof/metalwork RAL 8014', () => {
+  const order = makeOrder([makeItem('obudowa-default-colours', 'OBUDOWA')]);
+  const data = createEnclosureDocumentData(order);
+
+  assert.equal(data.kolorObudowy, 'RAL 1013');
+  assert.equal(data.kolorDachu, 'RAL 8014');
+  assert.equal(data.kolorSlusarki, 'RAL 8014');
+  assert.equal(data.kolorDrzwiKraty, 'RAL 8014');
+
+  const template: VersionedDocumentTemplate = {
+    key: 'zlecenie-obudowy',
+    title: 'Default colours test',
+    version: 1,
+    contentHtml: '<div>{{derived.colours}}</div>',
+    sections: [],
+    fields: [],
+    rules: [],
+  };
+  const rendered = renderVersionedEnclosureTemplate(template, data, order);
+
+  assert.match(rendered, /Kolor elewacji/);
+  assert.match(rendered, /RAL 1013/);
+  assert.match(rendered, /Kolor dachu i ślusarki/);
+  assert.match(rendered, /RAL 8014/);
+  assert.doesNotMatch(rendered, /<td>Ślusarka<\/td>|<td>Dach<\/td>|<td>Drzwi i kraty<\/td>/);
+});
+
+test('legacy saved colour fields hydrate into one shared roof/metalwork value', () => {
+  const savedForm = {
+    kolorObudowy: 'RAL 1001',
+    kolorSlusarki: 'RAL 8022',
+    kolorDachu: '',
+    kolorDrzwiKraty: 'RAL 8022',
+  };
+  const order = makeOrder([makeItem('obudowa-legacy-colours', 'OBUDOWA', {
+    formularze: { zlecenieObudowy: savedForm },
+  })]);
+
+  const data = createEnclosureDocumentData(order);
+
+  assert.equal(data.kolorObudowy, 'RAL 1001');
+  assert.equal(data.kolorDachu, 'RAL 8022');
+  assert.equal(data.kolorSlusarki, 'RAL 8022');
+  assert.equal(data.kolorDrzwiKraty, 'RAL 8022');
 });
 
 test('document save writes the instance into the existing OBUDOWA form path', () => {
