@@ -80,8 +80,8 @@ const colourTable = (data: EnclosureDocumentData): string => {
 export const DEFAULT_ENCLOSURE_TEMPLATE_HTML = [
   '<div class="document-sheet document-layout-v4">',
   '<h1 class="document-document-heading">WYKONANIE STACJI TRANSFORMATOROWEJ {{derived.title}}</h1>',
-  '<div class="document-center-meta"><p><strong>ZD NR {{form.numerZD}} z dnia {{form.dataZD}}</strong></p><p><strong>ZL {{form.numerZL}}</strong></p></div>',
-  '<p class="document-dot"><strong>DOT. WYKONANIA STACJI TRANSFORMATOROWEJ {{derived.stationVariant}}</strong></p>',
+  '<div class="document-center-meta"><p><strong>{{derived.zdHeader}}</strong></p><p><strong>{{derived.orderNumberHeader}}</strong></p></div>',
+  '<p class="document-dot"><strong>DOT. WYKONANIA STACJI TRANSFORMATOROWEJ {{derived.stationVariant}} {{form.dotExtra}}</strong></p>',
   '<p class="document-inline-field"><strong>TERMIN REALIZACJI:</strong> {{form.terminRealizacji}}</p>',
   '<p class="document-section-label"><strong>ZAKRES PRAC:</strong></p>',
   '<p class="document-subheading"><strong>TYP OBUDOWY</strong></p>',
@@ -331,6 +331,21 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     ? data.rozmiar
     : [data.typObudowy, data.rozmiar].filter(Boolean).join(' ');
   const title = [titleVariant, data.oznaczenieStacji, data.nazwaObiektu].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim() || order.projectName || order.orderNumber;
+  if (path === 'derived.zdHeader') {
+    const zdNumber = asText(data.numerZD);
+    const zdDate = asText(data.dataZD);
+    const numberLabel = zdNumber
+      ? (/^zd\\s*nr\\b/i.test(zdNumber) ? zdNumber : 'ZD NR ' + zdNumber)
+      : '';
+    const dateLabel = zdDate ? 'z dnia ' + datePL(zdDate) : '';
+    return escapeHtml([numberLabel, dateLabel].filter(Boolean).join(' '));
+  }
+  if (path === 'derived.orderNumberHeader') {
+    const orderNumber = asText(data.numerZL);
+    return escapeHtml(orderNumber
+      ? (/^zl\\b/i.test(orderNumber) ? orderNumber : 'ZL ' + orderNumber)
+      : '');
+  }
   if (path === 'derived.title') return escapeHtml(title);
   if (path === 'derived.stationVariant') return escapeHtml(titleVariant || data.typObudowy || data.rozmiar);
   if (path === 'derived.dot') return escapeHtml([title, data.dotExtra].filter(Boolean).join(' — ') || '—');
