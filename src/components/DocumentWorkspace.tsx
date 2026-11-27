@@ -147,8 +147,6 @@ export const DocumentWorkspace: React.FC<Props> = ({
 
   const changeForm = (next: EnclosureDocumentData) => {
     const wasManuallyEdited = previewChangedRef.current;
-    dataRef.current = next;
-    setData(next);
     setFormChanged(true);
 
     // Form values are authoritative. A form edit always refreshes the generated
@@ -160,9 +158,17 @@ export const DocumentWorkspace: React.FC<Props> = ({
       : isCurrentEnclosureDocumentTemplate(sharedTemplateRef.current)
         ? sharedTemplateRef.current
         : null;
+    const synchronizedData: EnclosureDocumentData = {
+      ...next,
+      __templateVersion: activeTemplate?.version,
+      __templateSnapshot: activeTemplate ?? undefined,
+      __documentLayoutVersion: CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION,
+    };
+    dataRef.current = synchronizedData;
+    setData(synchronizedData);
     const html = activeTemplate
-      ? renderVersionedEnclosureTemplate(activeTemplate, next, order)
-      : buildEnclosureDocumentHtml(next, order);
+      ? renderVersionedEnclosureTemplate(activeTemplate, synchronizedData, order)
+      : buildEnclosureDocumentHtml(synchronizedData, order);
     previewTemplateRef.current = activeTemplate;
     setPreviewHtml(sanitizeDocumentHtml(html));
     setPreviewResetToken((value) => value + 1);
@@ -248,7 +254,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
           {canEdit && <button type="button" onClick={() => setDictionariesManagerOpen(true)} title="Dodawaj pozycje do wspólnych list wyboru" className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"><BookOpen size={14}/> Słowniki</button>}
           {currentProfile.id === 'admin' && <button type="button" disabled={templateLoading} onClick={() => setTemplateEditorOpen(true)} title={templateLoading ? 'Trwa wczytywanie wzorca' : 'Edytuj wspólny wzorzec dla nowych dokumentów'} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-wait disabled:opacity-50"><FileText size={14}/> {templateLoading ? 'Wczytywanie wzorca…' : 'Edytuj wzorzec'}</button>}
           <button type="button" disabled={!canDownload} onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Printer size={14}/> Drukuj / PDF</button>
-          {canEdit && <button type="button" onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"><RefreshCw size={14}/> Odśwież podgląd</button>}
+          {canEdit && <button type="button" onClick={regeneratePreview} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"><RefreshCw size={14}/> {Number(data.__documentLayoutVersion || 0) < CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION ? 'Zastosuj nowy układ' : 'Odśwież podgląd'}</button>}
           {canEdit && <button type="button" disabled={saving || !hasEnclosure} onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 size={15}/> Zatwierdź dokument</button>}
         </div>
       </header>
@@ -264,7 +270,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
 
         <main className="min-h-0 overflow-y-auto bg-slate-200/60 p-3 md:p-5 xl:p-6">
           <div className="mx-auto mb-3 flex max-w-[980px] flex-wrap items-center justify-between gap-2">
-            <div><h2 className="text-sm font-bold text-slate-800">Podgląd końcowego dokumentu</h2><p className="mt-0.5 text-[11px] text-slate-500">{canEdit ? 'Kliknij dowolny tekst lub komórkę tabeli, aby poprawić treść bezpośrednio na dokumencie.' : 'Dokument w trybie tylko do odczytu.'}</p></div>
+            <div><h2 className="text-sm font-bold text-slate-800">Podgląd końcowego dokumentu</h2><p className="mt-0.5 text-[11px] text-slate-500">{canEdit ? 'Kliknij tekst lub komórkę tabeli, aby poprawić dokument. Zmiana pola formularza ponownie generuje treść z aktualnych danych.' : 'Dokument w trybie tylko do odczytu.'}</p></div>
             <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium text-slate-500"><span>{previewChanged ? 'Podgląd zawiera ręczne zmiany' : 'Podgląd wygenerowany z formularza'}</span><span>·</span><span>{templateLoading ? 'Wczytywanie wzorca…' : sharedTemplate ? 'Wspólny wzorzec · v' + sharedTemplate.version : 'Wzorzec lokalny · v1'}</span></div>
           </div>
           <DocumentPreviewEditor html={previewHtml} resetToken={previewResetToken} editable={canEdit} onChange={(html) => { setPreviewHtml(html); previewChangedRef.current = true; setPreviewChanged(true); }}/>
