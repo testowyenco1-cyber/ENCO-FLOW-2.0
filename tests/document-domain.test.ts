@@ -436,7 +436,9 @@ test('editor HTML normalization removes browser-added trailing empty paragraphs 
 
   assert.match(normalized, /Treść dokumentu/);
   assert.match(normalized, /document-footer/);
-  assert.doesNotMatch(normalized, /<div><br><\\/div>\\s*<p><br><\\/p>|<div>&nbsp;<\\/div>/);
+  assert.ok(!normalized.includes('<div><br></div>'));
+  assert.ok(!normalized.includes('<p><br></p>'));
+  assert.ok(!normalized.includes('<div>&nbsp;</div>'));
   assert.equal(normalizeDocumentEditorHtml(normalized), normalized);
 });
 
