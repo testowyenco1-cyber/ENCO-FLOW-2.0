@@ -43,11 +43,11 @@ const table = (headers: string[], body: string) =>
 const paragraph = (label: string, value: unknown) => asText(value)
   ? '<p><strong>' + escapeHtml(label) + ':</strong> ' + cell(value) + '</p>' : '';
 const colourTable = (data: EnclosureDocumentData): string => {
+  const roofMetalworkColour = [data.kolorDachu, data.kolorSlusarki, data.kolorDrzwiKraty]
+    .map(asText).find(Boolean) || '';
   const rows: Array<[string, string]> = [
-    ['Obudowa / elewacja', data.kolorObudowy],
-    ['Ślusarka', data.kolorSlusarki],
-    ['Dach', data.kolorDachu],
-    ['Drzwi i kraty', data.kolorDrzwiKraty],
+    ['Kolor elewacji', data.kolorObudowy],
+    ['Kolor dachu i ślusarki', roofMetalworkColour],
   ].filter((entry): entry is [string, string] => Boolean(asText(entry[1])));
   if (!rows.length) return '';
   return table(
