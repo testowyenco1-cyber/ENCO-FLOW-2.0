@@ -297,7 +297,8 @@ const formatScopeRow = (row: DocumentRow): string => {
     row.exhaustFan ? 'wentylator wyciągowy' : '',
     row.notes,
   ].map(asText).filter(Boolean).join(' – ');
-  return quantity + ' x ' + asText(row.type) + (details ? ' – ' + details : '');
+  const type = /^hea\\b/i.test(asText(row.type)) ? 'przepust HEA' : asText(row.type);
+  return quantity + ' x ' + type + (details ? ' – ' + details : '');
 };
 
 const formatPassageRow = (row: DocumentRow): string => {
