@@ -25,15 +25,9 @@ export const DocumentRowsEditor: React.FC<Props> = ({
     const row = value[index];
     if (!row) return;
     if (kind === 'door') {
-      const inferredWidth = /trafo|transformator/i.test(name) ? '1170' : '950';
-      const canReplaceDefault = !row.width || row.width === '950' || row.width === '1170';
-      const canReplaceHeight = !row.height || row.height === '2100';
-      update(index, {
-        type: name,
-        width: canReplaceDefault ? inferredWidth : row.width,
-        height: canReplaceHeight ? '2100' : row.height,
-        category: name,
-      });
+      // Door dimensions are optional: NZ doors may be made to fit the station.
+      // Changing the door name must not infer or overwrite physical dimensions.
+      update(index, { type: name, category: name });
       return;
     }
     update(index, {
@@ -47,8 +41,6 @@ export const DocumentRowsEditor: React.FC<Props> = ({
     quantity: '1',
     unit: 'szt.',
     position: '',
-    width: kind === 'door' ? '950' : undefined,
-    height: kind === 'door' ? '2100' : undefined,
     category: kind === 'small-element' ? 'Pozostałe' : undefined,
   }]);
   const remove = (index: number) => onChange(value.filter((_, rowIndex) => rowIndex !== index));
@@ -140,9 +132,10 @@ export const DocumentRowsEditor: React.FC<Props> = ({
                       onChange={(event) => {
                         const selected = DOOR_DIMENSIONS.find((dimension) => dimension.value === event.target.value);
                         if (selected) update(index, { width: selected.width, height: selected.height });
+                        else if (event.target.value === '') update(index, { width: '', height: '' });
                       }}
                     >
-                      <option value="">Wybierz wymiar</option>
+                      <option value="">Nieokreślony / dopasowany do stacji</option>
                       {DOOR_DIMENSIONS.map((dimension) => <option key={dimension.value} value={dimension.value}>{dimension.label}</option>)}
                       {doorSizeValue === 'custom' && <option value="custom">Inny wymiar — zachowany z danych</option>}
                     </select>
