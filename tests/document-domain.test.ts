@@ -149,7 +149,7 @@ test('anti-graffiti is a Tak/Nie option and the standard facade finish is fixed'
   assert.match(html, /Tynk akrylowy zewnętrzny o strukturze baranka/);
   assert.match(html, /Powłoka antygraffiti/);
   assert.match(html, />Tak</);
-  assert.doesNotMatch(html, /Struktura:<\\/strong>/);
+  assert.ok(!html.includes('Struktura:'));
 });
 
 test('small elements merge legacy extras into one categorized list with quantities', () => {
