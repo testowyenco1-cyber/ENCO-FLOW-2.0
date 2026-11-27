@@ -42,6 +42,16 @@ const table = (headers: string[], body: string) =>
   '</tr></thead><tbody>' + body + '</tbody></table>';
 const paragraph = (label: string, value: unknown) => asText(value)
   ? '<p><strong>' + escapeHtml(label) + ':</strong> ' + cell(value) + '</p>' : '';
+const deliveryListsTable = (data: EnclosureDocumentData): string => {
+  const locationTable = (rows: DocumentRow[]) =>
+    table(['Element', 'Ilość', 'Lokalizacja / uwagi'],
+      rowsHtml(rows, ['type', 'quantity', 'mountingDetails']));
+  return '<table class="document-two-column"><tbody><tr>' +
+    '<td><h3>Warszawa</h3>' + locationTable(data.dostawaWarszawa) + '</td>' +
+    '<td><h3>Pyskowice</h3>' + locationTable(data.dostawaPyskowice) + '</td>' +
+    '</tr></tbody></table>';
+};
+
 const colourTable = (data: EnclosureDocumentData): string => {
   const roofMetalworkColour = [data.kolorDachu, data.kolorSlusarki, data.kolorDrzwiKraty]
     .map(asText).find(Boolean) || '';
@@ -62,11 +72,6 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
     : [data.typObudowy, data.rozmiar].filter(Boolean).join(' ');
   const heading = [variant, data.oznaczenieStacji, data.nazwaObiektu]
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() || order.projectName || order.orderNumber;
-  const deliveryRows = [
-    ...data.dostawaWarszawa.map((row) => ({ ...row, position: ['Warszawa', row.position].filter(Boolean).join(' — ') })),
-    ...data.dostawaPyskowice.map((row) => ({ ...row, position: ['Pyskowice', row.position].filter(Boolean).join(' — ') })),
-  ];
-
   return `
     <div class="document-sheet">
       <div class="document-brandline"><span>ENCO</span><span>SP. Z O.O. · DOKUMENTACJA PRODUKCYJNA</span></div>
@@ -111,7 +116,7 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
         ['Inne urządzenia', data.inneUrzadzenia],
       ].filter((entry) => asText(entry[1])).map(([label, value]) => '<tr><td><strong>' + escapeHtml(label) + '</strong></td><td>' + cell(value) + '</td></tr>').join('') || '<tr><td colspan="2">Nie uzupełniono danych urządzeń.</td></tr>')}
       <h2>6. Zestawienie dostaw</h2>
-      ${table(['Dostawca', 'Element', 'Ilość', 'Lokalizacja / uwagi'], rowsHtml(deliveryRows, ['position', 'type', 'quantity', 'notes']))}
+      ${deliveryListsTable(data)}
       <h2>7. Wykonanie montażu stacji</h2>
       ${paragraph('Wykonawca', data.montazWykonawca)}
       ${paragraph('Termin montażu', data.montazTermin)}
@@ -296,11 +301,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
   if (path === 'derived.dot') return escapeHtml([title, data.dotExtra].filter(Boolean).join(' — ') || '—');
 
   if (path === 'derived.deliveryTable' || path === 'derived.deliveryLists') {
-    const rows = [
-      ...data.dostawaWarszawa.map((row) => ({ ...row, position: ['Warszawa', row.position].filter(Boolean).join(' — ') })),
-      ...data.dostawaPyskowice.map((row) => ({ ...row, position: ['Pyskowice', row.position].filter(Boolean).join(' — ') })),
-    ];
-    return table(['Dostawca', 'Element', 'Ilość', 'Uwagi'], rowsHtml(rows, ['position', 'type', 'quantity', 'notes']));
+    return deliveryListsTable(data);
   }
   if (path === 'derived.smallElements') {
     const rows = getSmallElementRows(data);
@@ -405,7 +406,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
   ]);
   const dangerousTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'LINK', 'META']);
   const allowedClasses = new Set([
-    'document-sheet', 'document-brandline', 'document-kicker', 'document-title', 'document-footer',
+    'document-sheet', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column',
   ]);
   const allowedStyles = new Set([
     'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color',
