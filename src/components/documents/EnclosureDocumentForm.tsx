@@ -84,7 +84,16 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
       </Section>
 
       <Section number="04" title="Kolory i elewacja">
-        <div className="grid grid-cols-2 gap-3">{field('kolorObudowy', 'Kolor obudowy (RAL)')}{field('kolorSlusarki', 'Kolor ślusarki (RAL)')}{field('kolorDachu', 'Kolor dachu (RAL)')}{field('kolorDrzwiKraty', 'Kolor drzwi i krat (RAL)')}</div>
+        <div className="grid grid-cols-2 gap-3">
+          {field('kolorObudowy', 'Kolor elewacji (RAL)')}
+          <Field
+            key="kolorDachu"
+            label="Kolor dachu i ślusarki (RAL)"
+            value={String(data.kolorDachu ?? '')}
+            disabled={disabled}
+            onChange={(value) => onChange({ ...data, kolorDachu: value, kolorSlusarki: value, kolorDrzwiKraty: value })}
+          />
+        </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
           <p className="text-xs font-semibold text-slate-700">Standardowe wykończenie elewacji</p>
           <p className="mt-1 text-xs text-slate-600">Tynk akrylowy zewnętrzny o strukturze baranka</p>
