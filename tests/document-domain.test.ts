@@ -180,6 +180,30 @@ test('small elements merge legacy extras into one categorized list with quantiti
   assert.equal(rows[4].category, 'Konstrukcja / mocowanie');
 });
 
+test('current built-in document layout always includes manual device fields and side-by-side deliveries', () => {
+  const order = makeOrder([
+    legacyEnclosure,
+    makeItem('sn-current', 'ROZDZIELNICA_SN', { producent: 'Siemens', model: '8DJH', liczbaPol: 3 }),
+  ]);
+  const data = {
+    ...createEnclosureDocumentData(order),
+    rozdzielnicaSN: 'Siemens 8DJH · 3 pola · ręczna konfiguracja',
+    rozdzielnicaNN: 'Rozdzielnica NN według projektu',
+    telemechanika: 'RTU + modem LTE',
+    montazWykonawca: 'ENCO — dział montażu',
+  };
+
+  const html = buildEnclosureDocumentHtml(data, order);
+  assert.match(html, /document-layout-v2/);
+  assert.match(html, /document-two-column/);
+  assert.match(html, /Warszawa/);
+  assert.match(html, /Pyskowice/);
+  assert.match(html, /Siemens 8DJH · 3 pola · ręczna konfiguracja/);
+  assert.match(html, /Rozdzielnica NN według projektu/);
+  assert.match(html, /RTU \+ modem LTE/);
+  assert.match(html, /ENCO — dział montażu/);
+});
+
 test('document generator and legacy array tokens render structured tables', () => {
   const order = makeOrder([legacyEnclosure]);
   const data = createEnclosureDocumentData(order);
