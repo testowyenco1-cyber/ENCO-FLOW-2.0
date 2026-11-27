@@ -284,7 +284,7 @@ test('colour summary only displays the elements with an explicitly supplied colo
 
   const rendered = renderVersionedEnclosureTemplate(template, data, order);
 
-  assert.match(rendered, /Obudowa \\/ elewacja/);
+  assert.ok(rendered.includes('Obudowa / elewacja'));
   assert.match(rendered, /RAL 7035/);
   assert.doesNotMatch(rendered, /Ślusarka|Dach|Drzwi i kraty/);
 });
