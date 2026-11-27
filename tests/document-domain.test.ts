@@ -475,14 +475,20 @@ test('enclosure order uses the compact original layout and paired delivery colum
     opisObudowy: 'Wykonanie obudowy stacji transformatorowej NZ 210/240 wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi.',
     slusarka: [{ id: 'door-1', type: 'Drzwi dwuskrzydłowe z kratami wentylacyjnymi do rozdzielnicy SN', quantity: '1', position: '' }],
     drobneElementy: [{ id: 'element-1', type: 'Kieszenie na schemat', quantity: '1', position: '' }],
-    przepusty: [{ id: 'passage-1', type: 'BWS 150', quantity: '2', unit: 'szt.', cableType: 'SN', sealType: 'HRD', sealVariant: '150', position: '' }],
+    przepusty: [
+      { id: 'passage-hea', type: 'HEA', quantity: '3', unit: 'szt.', position: 'zgodnie z załączonymi rysunkami' },
+      { id: 'passage-1', type: 'BWS 150', quantity: '2', unit: 'szt.', cableType: 'SN', sealType: 'HRD', sealVariant: '150', position: '' },
+    ],
     rozdzielnicaSN: 'SIEMENS 8DHJ 24 – blue GIS (3 polowa) RRT, 24 kV, 630 A, 16 kA/1s',
     rozdzielnicaNN: 'RTS-z – 14-polowa',
     transformator: '630 kVA 15/0,4kV',
     uziemienie: 'linka',
     instalacjaOswietleniowa: 'wewnętrzna',
     dostawaWarszawa: [{ id: 'warsaw-1', type: 'Most SN z głowicami RSES 525B oraz POLT 24C/1XI', quantity: '1', unit: 'szt.', position: '' }],
-    dostawaPyskowice: [{ id: 'pyskowice-1', type: 'Zaciski krzyżowe', quantity: '1', unit: 'szt.', position: '', notes: 'sprawdzić zgodność gwintów z przepustami' }],
+    dostawaPyskowice: [
+      { id: 'pyskowice-1', type: 'Zaciski krzyżowe', quantity: '1', unit: 'szt.', position: '', notes: 'sprawdzić zgodność gwintów z przepustami' },
+      { id: 'pyskowice-2', type: 'Podkładki antywibracyjne pod transformator', quantity: '1', unit: 'kpl.', position: '' },
+    ],
     montazWykonawca: '',
     montazTermin: '',
     montazOdpowiedzialny: 'Warszawa',
@@ -496,6 +502,8 @@ test('enclosure order uses the compact original layout and paired delivery colum
   assert.ok(html.includes('ZL 85/2026'));
   assert.doesNotMatch(html, /ZL ZL/);
   assert.match(html, /2 x przepust kablowy SN typu BWS 150 wraz z wkładami uszczelniającymi HRD 150/);
+  assert.match(html, /3 x przepust HEA – zgodnie z załączonymi rysunkami/);
+  assert.match(html, /1 kpl\./);
   assert.match(html, /Dostarcza Warszawa/);
   assert.match(html, /Dostarczają Pyskowice/);
   assert.match(html, /Zaciski krzyżowe – sprawdzić zgodność gwintów z przepustami/);
