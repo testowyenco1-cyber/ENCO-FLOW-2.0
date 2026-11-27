@@ -1461,25 +1461,54 @@ async function startServer() {
     ],
   };
 
-  const readDocumentFormDictionaries = (): Record<string, string[]> => {
-    let stored: Record<string, unknown> = {};
+  type StoredDocumentDictionaryState = { additions: string[]; removed: string[] };
+
+  const normalizeDictionaryEntry = (value: string) => value.trim().toLocaleLowerCase('pl-PL');
+
+  const readStoredDocumentDictionaryState = (
+    stored: Record<string, unknown>,
+    dictionaryKey: string,
+  ): StoredDocumentDictionaryState => {
+    const raw = stored[dictionaryKey];
+    // Older installations stored user additions as a plain string array.
+    if (Array.isArray(raw)) {
+      return {
+        additions: raw.filter((entry): entry is string => typeof entry === 'string'),
+        removed: [],
+      };
+    }
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const state = raw as Record<string, unknown>;
+      return {
+        additions: Array.isArray(state.additions) ? state.additions.filter((entry): entry is string => typeof entry === 'string') : [],
+        removed: Array.isArray(state.removed) ? state.removed.filter((entry): entry is string => typeof entry === 'string') : [],
+      };
+    }
+    return { additions: [], removed: [] };
+  };
+
+  const readStoredDocumentDictionaryFile = (): Record<string, unknown> => {
     try {
       const parsed = JSON.parse(fs.readFileSync(DOCUMENT_FORM_DICTIONARIES_FILE, 'utf-8'));
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) stored = parsed;
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     } catch {
-      stored = {};
+      return {};
     }
+  };
 
+  const readDocumentFormDictionaries = (): Record<string, string[]> => {
+    const stored = readStoredDocumentDictionaryFile();
     const result: Record<string, string[]> = {};
     for (const [key, defaults] of Object.entries(DOCUMENT_FORM_DICTIONARY_DEFAULTS)) {
-      const additions = Array.isArray(stored[key]) ? stored[key] as unknown[] : [];
-      const seen = new Set(defaults.map((entry) => entry.toLocaleLowerCase('pl-PL')));
-      result[key] = [...defaults];
-      for (const candidate of additions) {
-        if (typeof candidate !== 'string') continue;
-        const value = candidate.trim();
-        const normalized = value.toLocaleLowerCase('pl-PL');
-        if (!value || seen.has(normalized)) continue;
+      const state = readStoredDocumentDictionaryState(stored, key);
+      const removed = new Set(state.removed.map(normalizeDictionaryEntry));
+      const seen = new Set<string>();
+      result[key] = [];
+
+      for (const entry of [...defaults, ...state.additions]) {
+        const value = entry.trim();
+        const normalized = normalizeDictionaryEntry(value);
+        if (!value || removed.has(normalized) || seen.has(normalized)) continue;
         seen.add(normalized);
         result[key].push(value);
       }
@@ -1502,31 +1531,63 @@ async function startServer() {
       const defaults = DOCUMENT_FORM_DICTIONARY_DEFAULTS[dictionaryKey];
       const value = typeof req.body?.value === 'string' ? req.body.value.trim() : '';
       if (!defaults) return res.status(404).json({ success: false, error: 'Nieznana lista słownika dokumentów.' });
-      if (!value || value.length > 120 || /[\u000A\u000D\u0009]/.test(value)) {
+      if (!value || value.length > 120 || /[\\u000A\\u000D\\u0009]/.test(value)) {
         return res.status(400).json({ success: false, error: 'Nazwa pozycji musi mieć od 1 do 120 znaków.' });
       }
 
-      let stored: Record<string, unknown> = {};
-      try {
-        const parsed = JSON.parse(fs.readFileSync(DOCUMENT_FORM_DICTIONARIES_FILE, 'utf-8'));
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) stored = parsed;
-      } catch {
-        stored = {};
-      }
-
+      const stored = readStoredDocumentDictionaryFile();
+      const state = readStoredDocumentDictionaryState(stored, dictionaryKey);
+      const normalized = normalizeDictionaryEntry(value);
       const current = readDocumentFormDictionaries()[dictionaryKey] || defaults;
-      if (current.some((entry) => entry.toLocaleLowerCase('pl-PL') === value.toLocaleLowerCase('pl-PL'))) {
+      const existing = current.find((entry) => normalizeDictionaryEntry(entry) === normalized);
+      if (existing) {
         return res.status(409).json({ success: false, error: 'Taka pozycja znajduje się już w wybranym słowniku.' });
       }
 
-      const additions = Array.isArray(stored[dictionaryKey]) ? (stored[dictionaryKey] as unknown[]).filter((entry): entry is string => typeof entry === 'string') : [];
-      additions.push(value);
-      stored[dictionaryKey] = additions;
+      // Adding a previously hidden built-in value restores it instead of creating a duplicate.
+      state.removed = state.removed.filter((entry) => normalizeDictionaryEntry(entry) !== normalized);
+      const builtIn = defaults.find((entry) => normalizeDictionaryEntry(entry) === normalized);
+      state.additions = state.additions.filter((entry) => normalizeDictionaryEntry(entry) !== normalized);
+      if (!builtIn) state.additions.push(value);
+
+      stored[dictionaryKey] = state;
       writeJsonAtomically(DOCUMENT_FORM_DICTIONARIES_FILE, stored);
       return res.json({ success: true, dictionaries: readDocumentFormDictionaries(), timestamp: Date.now() });
     } catch (err) {
       console.error('Error saving document-form dictionary:', err);
       return res.status(500).json({ success: false, error: 'Błąd zapisu słownika kreatora dokumentów.' });
+    }
+  });
+
+  app.delete('/api/document-form-dictionaries/:dictionaryKey', requireItemPermission('OBUDOWA'), (req: any, res) => {
+    try {
+      const dictionaryKey = String(req.params?.dictionaryKey || '');
+      const defaults = DOCUMENT_FORM_DICTIONARY_DEFAULTS[dictionaryKey];
+      const value = typeof req.body?.value === 'string' ? req.body.value.trim() : '';
+      if (!defaults) return res.status(404).json({ success: false, error: 'Nieznana lista słownika dokumentów.' });
+      if (!value || value.length > 120 || /[\\u000A\\u000D\\u0009]/.test(value)) {
+        return res.status(400).json({ success: false, error: 'Nieprawidłowa nazwa pozycji do usunięcia.' });
+      }
+
+      const current = readDocumentFormDictionaries()[dictionaryKey] || defaults;
+      const existing = current.find((entry) => normalizeDictionaryEntry(entry) === normalizeDictionaryEntry(value));
+      if (!existing) return res.status(404).json({ success: false, error: 'Nie znaleziono tej pozycji w wybranym słowniku.' });
+
+      const stored = readStoredDocumentDictionaryFile();
+      const state = readStoredDocumentDictionaryState(stored, dictionaryKey);
+      const normalized = normalizeDictionaryEntry(existing);
+      const builtIn = defaults.some((entry) => normalizeDictionaryEntry(entry) === normalized);
+
+      state.additions = state.additions.filter((entry) => normalizeDictionaryEntry(entry) !== normalized);
+      state.removed = state.removed.filter((entry) => normalizeDictionaryEntry(entry) !== normalized);
+      if (builtIn) state.removed.push(existing);
+
+      stored[dictionaryKey] = state;
+      writeJsonAtomically(DOCUMENT_FORM_DICTIONARIES_FILE, stored);
+      return res.json({ success: true, dictionaries: readDocumentFormDictionaries(), timestamp: Date.now() });
+    } catch (err) {
+      console.error('Error removing document-form dictionary entry:', err);
+      return res.status(500).json({ success: false, error: 'Błąd usuwania pozycji ze słownika kreatora dokumentów.' });
     }
   });
 
