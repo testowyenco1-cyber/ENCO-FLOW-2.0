@@ -494,9 +494,9 @@ test('enclosure order uses the compact original layout and paired delivery colum
   const html = buildEnclosureDocumentHtml(data, order);
 
   assert.match(html, /document-layout-v4/);
-  assert.match(html, /WYKONANIE STACJI TRANSFORMATOROWEJ NZ 210\\/240 ST2-2262 TAMA/);
-  assert.match(html, /ZD NR 85 z dnia 16\\.09\\.2026/);
-  assert.match(html, /ZL 85\\/2026/);
+  assert.ok(html.includes('WYKONANIE STACJI TRANSFORMATOROWEJ NZ 210/240 ST2-2262 TAMA'));
+  assert.ok(html.includes('ZD NR 85 z dnia 16.09.2026'));
+  assert.ok(html.includes('ZL 85/2026'));
   assert.doesNotMatch(html, /ZL ZL/);
   assert.match(html, /2 x przepust kablowy SN typu BWS 150 wraz z wkładami uszczelniającymi HRD 150/);
   assert.match(html, /Dostarcza Warszawa/);
