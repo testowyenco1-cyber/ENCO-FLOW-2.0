@@ -477,10 +477,10 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             </div>
           )}
 
-          <div className={`min-h-0 flex-1 ${isReadOnly ? 'pointer-events-none select-none opacity-85' : ''}`}>
+          <div className={`flex min-h-0 flex-1 flex-col ${isReadOnly ? 'pointer-events-none select-none opacity-85' : ''}`}>
 
           {item.type === 'OBUDOWA' ? (
-            <div className="h-full min-h-0 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
               <ObudowaForm
                 initialData={details}
                 relatedItems={orderItems}
@@ -499,7 +499,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               />
             </div>
           ) : (
-            <div className="grid h-full min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(255px,0.72fr)_minmax(0,1.8fr)]">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(255px,0.72fr)_minmax(0,1.8fr)]">
               {/* Dates */}
               <div className="grid content-start grid-cols-1 gap-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
                 {item?.type !== 'DATA_WYJAZDU' && <div>
