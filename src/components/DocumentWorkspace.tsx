@@ -6,7 +6,7 @@ import { canEditItemType } from '../types/userRole';
 import { EnclosureDocumentForm } from './documents/EnclosureDocumentForm';
 import { DocumentPreviewEditor } from './documents/DocumentPreviewEditor';
 import { createEnclosureDocumentData, type EnclosureDocumentData } from './documents/documentModel';
-import { buildEnclosureDocumentHtml, fetchEnclosureDocumentTemplate, renderVersionedEnclosureTemplate, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './documents/DocumentTemplateService';
+import { buildEnclosureDocumentHtml, CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION, fetchEnclosureDocumentTemplate, isCurrentEnclosureDocumentTemplate, renderVersionedEnclosureTemplate, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './documents/DocumentTemplateService';
 import { updateOrderWithEnclosureDocument } from './documents/DocumentPersistence';
 import { DocumentTemplateEditorModal } from './documents/DocumentTemplateEditorModal';
 import { DocumentDictionariesManager } from './documents/DocumentDictionariesManager';
@@ -26,14 +26,21 @@ export const DocumentWorkspace: React.FC<Props> = ({
   const [data, setData] = useState<EnclosureDocumentData>(() => createEnclosureDocumentData(order));
   const [previewHtml, setPreviewHtml] = useState(() => {
     const initial = createEnclosureDocumentData(order);
-    return sanitizeDocumentHtml(initial.documentContentHtml ?? buildEnclosureDocumentHtml(initial, order));
+    const hasCurrentLayout = Number(initial.__documentLayoutVersion || 0) >= CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION;
+    const keepManualBody = initial.documentContentManual === true;
+    return sanitizeDocumentHtml(
+      keepManualBody || hasCurrentLayout
+        ? initial.documentContentHtml ?? buildEnclosureDocumentHtml(initial, order)
+        : buildEnclosureDocumentHtml(initial, order),
+    );
   });
   const [previewResetToken, setPreviewResetToken] = useState(0);
   const dataRef = useRef(data);
   dataRef.current = data;
   const sharedTemplateRef = useRef<VersionedDocumentTemplate | null>(null);
   const previewTemplateRef = useRef<VersionedDocumentTemplate | null>(
-    data.__templateSnapshot && typeof data.__templateSnapshot === 'object'
+    data.__templateSnapshot && typeof data.__templateSnapshot === 'object' &&
+    isCurrentEnclosureDocumentTemplate(data.__templateSnapshot as VersionedDocumentTemplate)
       ? data.__templateSnapshot as VersionedDocumentTemplate
       : null
   );
@@ -67,10 +74,16 @@ export const DocumentWorkspace: React.FC<Props> = ({
     const next = createEnclosureDocumentData(order);
     dataRef.current = next;
     setData(next);
-    setPreviewHtml(sanitizeDocumentHtml(next.documentContentHtml ?? buildEnclosureDocumentHtml(next, order)));
-    previewTemplateRef.current = next.__templateSnapshot && typeof next.__templateSnapshot === 'object'
-      ? next.__templateSnapshot as VersionedDocumentTemplate
-      : null;
+    const keepManualBody = next.documentContentManual === true;
+    setPreviewHtml(sanitizeDocumentHtml(
+      keepManualBody
+        ? next.documentContentHtml ?? buildEnclosureDocumentHtml(next, order)
+        : buildEnclosureDocumentHtml(next, order),
+    ));
+    previewTemplateRef.current = next.__templateSnapshot && typeof next.__templateSnapshot === 'object' &&
+      isCurrentEnclosureDocumentTemplate(next.__templateSnapshot as VersionedDocumentTemplate)
+        ? next.__templateSnapshot as VersionedDocumentTemplate
+        : null;
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
     const hasManualPreview = next.documentContentManual === true;
@@ -94,13 +107,16 @@ export const DocumentWorkspace: React.FC<Props> = ({
       sharedTemplateRef.current = template;
       setSharedTemplate(template);
       setTemplateLoading(false);
-      // A stored template snapshot belongs to this document. Generated
-      // documents (including legacy HTML without an explicit manual-edit marker)
-      // must be rebuilt from the form; only explicitly manual content is protected.
-      if (template && !previewChangedRef.current &&
+      // Current code layout is the fallback and the source of truth. Only templates
+      // explicitly carrying the current marker are allowed to replace it.
+      const renderTemplate = isCurrentEnclosureDocumentTemplate(storedTemplate)
+        ? storedTemplate
+        : isCurrentEnclosureDocumentTemplate(template) ? template : null;
+      if (!previewChangedRef.current &&
           (allowRender || initial.documentContentManual !== true)) {
-        const renderTemplate = storedTemplate?.contentHtml ? storedTemplate : template;
-        const nextHtml = renderVersionedEnclosureTemplate(renderTemplate, dataRef.current, order);
+        const nextHtml = renderTemplate
+          ? renderVersionedEnclosureTemplate(renderTemplate, dataRef.current, order)
+          : buildEnclosureDocumentHtml(dataRef.current, order);
         previewTemplateRef.current = renderTemplate;
         setPreviewHtml(sanitizeDocumentHtml(nextHtml));
         setPreviewResetToken((value) => value + 1);
@@ -130,24 +146,37 @@ export const DocumentWorkspace: React.FC<Props> = ({
   }, [canEdit, saving]);
 
   const changeForm = (next: EnclosureDocumentData) => {
+    const wasManuallyEdited = previewChangedRef.current;
     dataRef.current = next;
     setData(next);
     setFormChanged(true);
-    // Keep the generated document live until the user starts editing the page itself.
-    // After that point, form edits never overwrite the user's manual wording.
-    if (!previewChangedRef.current) {
-      const activeTemplate = previewTemplateRef.current ?? sharedTemplateRef.current;
-      const html = activeTemplate
-        ? renderVersionedEnclosureTemplate(activeTemplate, next, order)
-        : buildEnclosureDocumentHtml(next, order);
-      previewTemplateRef.current = activeTemplate;
-      setPreviewHtml(sanitizeDocumentHtml(html));
-      setPreviewResetToken((value) => value + 1);
+
+    // Form values are authoritative. A form edit always refreshes the generated
+    // document, even when an earlier manual preview edit had marked the whole
+    // HTML body as manual. This prevents device/contractor values from silently
+    // disappearing from the final document.
+    const activeTemplate = isCurrentEnclosureDocumentTemplate(previewTemplateRef.current)
+      ? previewTemplateRef.current
+      : isCurrentEnclosureDocumentTemplate(sharedTemplateRef.current)
+        ? sharedTemplateRef.current
+        : null;
+    const html = activeTemplate
+      ? renderVersionedEnclosureTemplate(activeTemplate, next, order)
+      : buildEnclosureDocumentHtml(next, order);
+    previewTemplateRef.current = activeTemplate;
+    setPreviewHtml(sanitizeDocumentHtml(html));
+    setPreviewResetToken((value) => value + 1);
+    previewChangedRef.current = false;
+    setPreviewChanged(false);
+    if (wasManuallyEdited) {
+      setMessage('Podgląd został zsynchronizowany z formularzem. Wcześniejsze ręczne poprawki w treści dokumentu zostały zastąpione.');
     }
   };
 
   const regeneratePreview = () => {
-    const activeTemplate = sharedTemplateRef.current;
+    const activeTemplate = isCurrentEnclosureDocumentTemplate(sharedTemplateRef.current)
+      ? sharedTemplateRef.current
+      : null;
     const html = activeTemplate
       ? renderVersionedEnclosureTemplate(activeTemplate, data, order)
       : buildEnclosureDocumentHtml(data, order);
@@ -158,8 +187,9 @@ export const DocumentWorkspace: React.FC<Props> = ({
       ...data,
       documentContentHtml: undefined,
       documentContentManual: false,
-      __templateVersion: activeTemplate?.version ?? data.__templateVersion,
-      __templateSnapshot: activeTemplate ?? data.__templateSnapshot,
+      __templateVersion: activeTemplate?.version,
+      __templateSnapshot: activeTemplate ?? undefined,
+      __documentLayoutVersion: CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION,
     };
     dataRef.current = regeneratedData;
     setData(regeneratedData);
@@ -186,6 +216,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
         __templateVersion: previewTemplateRef.current?.version ?? data.__templateVersion,
         __templateSnapshot: previewTemplateRef.current ?? data.__templateSnapshot,
         __sourceSnapshotApplied: true,
+        __documentLayoutVersion: CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION,
       };
       const updatedOrder = updateOrderWithEnclosureDocument(order, nextData);
       const result = await onSaveOrderChanges(updatedOrder);
@@ -257,7 +288,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
             setTemplateLoading(false);
             // A not-yet-saved, untouched document can adopt the new version
             // immediately. Saved documents and manual edits are never replaced.
-            if (dataRef.current.documentContentHtml === undefined && !previewChangedRef.current) {
+            if (isCurrentEnclosureDocumentTemplate(published) && !previewChangedRef.current) {
               const nextHtml = renderVersionedEnclosureTemplate(published, dataRef.current, order);
               previewTemplateRef.current = published;
               setPreviewHtml(sanitizeDocumentHtml(nextHtml));
