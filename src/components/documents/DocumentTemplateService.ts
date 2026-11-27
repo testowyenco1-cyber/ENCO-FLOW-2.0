@@ -216,6 +216,11 @@ const getTemplatePathValue = (path: string, data: EnclosureDocumentData, order: 
     return getNestedValue(related, tail);
   }
 
+  // These aliases represent one logical list. Resolve the merged rows here as well as
+  // during rendering, so the empty-block pass cannot remove legacy-only entries.
+  if (path === 'form.drobneElementy' || path === 'form.dodatkoweWyposazenie') {
+    return getSmallElementRows(data);
+  }
   if (path.startsWith('form.')) return getNestedValue(data, path.slice(5).split('.'));
   if (path.startsWith('order.')) return getNestedValue(order, path.slice(6).split('.'));
   if (path.startsWith('item.')) {
