@@ -137,7 +137,7 @@ export const EnclosureDocumentForm: React.FC<Props> = ({ data, onChange, disable
       </Section>
 
       <Section number="08" title="Montaż i uwagi końcowe">
-        <div className="grid grid-cols-2 gap-3">{field('montazWykonawca', 'Wykonawca montażu')}{field('montazTermin', 'Termin montażu')}{field('montazOdpowiedzialny', 'Odpowiedzialny / jednostka')}</div>
+        <div className="grid grid-cols-2 gap-3">{field('montazWykonawca', 'Wykonawca montażu')}{field('montazTermin', 'Termin realizacji montażu')}{field('montazOdpowiedzialny', 'Miejsce / jednostka (np. Warszawa)')}</div>
         {field('montazUwagi', 'Uwagi dotyczące montażu', { multiline: true })}
         {field('uwagi', 'Uwagi końcowe', { multiline: true })}
       </Section>
