@@ -335,7 +335,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     const zdNumber = asText(data.numerZD);
     const zdDate = asText(data.dataZD);
     const numberLabel = zdNumber
-      ? (/^zd\\s*nr\\b/i.test(zdNumber) ? zdNumber : 'ZD NR ' + zdNumber)
+      ? (/^zd\s*nr\b/i.test(zdNumber) ? zdNumber : 'ZD NR ' + zdNumber)
       : '';
     const dateLabel = zdDate ? 'z dnia ' + datePL(zdDate) : '';
     return escapeHtml([numberLabel, dateLabel].filter(Boolean).join(' '));
@@ -343,7 +343,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
   if (path === 'derived.orderNumberHeader') {
     const orderNumber = asText(data.numerZL);
     return escapeHtml(orderNumber
-      ? (/^zl\\b/i.test(orderNumber) ? orderNumber : 'ZL ' + orderNumber)
+      ? (/^zl\b/i.test(orderNumber) ? orderNumber : 'ZL ' + orderNumber)
       : '');
   }
   if (path === 'derived.title') return escapeHtml(title);
