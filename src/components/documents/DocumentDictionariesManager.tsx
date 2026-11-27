@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { BookOpen, Plus, X } from 'lucide-react';
+import { BookOpen, Plus, Trash2, X } from 'lucide-react';
 import {
   appendDocumentDictionaryValue,
+  removeDocumentDictionaryValue,
   DEFAULT_DOCUMENT_DICTIONARIES,
   DOCUMENT_DICTIONARY_CATEGORIES,
   type DocumentDictionaries,
@@ -39,6 +40,22 @@ export const DocumentDictionariesManager: React.FC<Props> = ({ dictionaries, onC
       setSuccess('Pozycja została zapisana na serwerze i jest już dostępna na liście.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać pozycji.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteValue = async (entry: string) => {
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const next = await removeDocumentDictionaryValue(category, entry);
+      onSaved(next);
+      setSuccess('Pozycja „' + entry + '” została usunięta ze wspólnego słownika.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Nie udało się usunąć pozycji.');
     } finally {
       setSaving(false);
     }
@@ -88,8 +105,20 @@ export const DocumentDictionariesManager: React.FC<Props> = ({ dictionaries, onC
                 const isDefault = DEFAULT_DOCUMENT_DICTIONARIES[category].some((defaultEntry) => defaultEntry.toLocaleLowerCase('pl-PL') === entry.toLocaleLowerCase('pl-PL'));
                 return (
                   <div key={entry} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                    <span className="min-w-0 text-sm text-slate-700">{entry}</span>
-                    <span className="shrink-0 text-[10px] text-slate-400">{isDefault ? 'Wbudowana' : 'Dodana przez użytkownika'}</span>
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm text-slate-700">{entry}</span>
+                      <span className="text-[10px] text-slate-400">{isDefault ? 'Pozycja wbudowana' : 'Pozycja dodana przez użytkownika'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => void deleteValue(entry)}
+                      title={'Usuń pozycję: ' + entry}
+                      aria-label={'Usuń pozycję: ' + entry}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rose-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-40"
+                    >
+                      <Trash2 size={13}/> Usuń
+                    </button>
                   </div>
                 );
               })}
