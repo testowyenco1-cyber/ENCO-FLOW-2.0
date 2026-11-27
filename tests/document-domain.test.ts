@@ -211,11 +211,11 @@ test('document generator and legacy array tokens render structured tables', () =
   const localHtml = buildEnclosureDocumentHtml(data, order);
   assert.match(localHtml, /ZLECENIE OBUDOWY/);
   assert.match(localHtml, /document-order-meta/);
-  const metadataTable = localHtml.match(/<table class="document-order-meta">[\\s\\S]*?<\\/table>/)?.[0] || '';
+  const metadataTable = localHtml.split('<table class="document-order-meta">')[1]?.split('</table>')[0] || '';
   assert.ok(metadataTable, 'first identification table should exist');
-  const metadataHeaders = Array.from(metadataTable.matchAll(/<th>(.*?)<\\/th>/g), (match) => match[1]);
+  const metadataHeaders = Array.from(metadataTable.matchAll(new RegExp('<th>([^<]*)</th>', 'g')), (match) => match[1]);
   assert.deepEqual(metadataHeaders, ['Nr ZL', 'Termin realizacji', 'Data ZD', 'Data wystawienia']);
-  assert.doesNotMatch(metadataTable, /<th>Nr ZD<\\/th>/);
+  assert.ok(!metadataTable.includes('<th>Nr ZD</th>'));
 
   assert.match(localHtml, /Most SN z głowicami/);
   assert.match(localHtml, /Zaciski krzyżowe/);
