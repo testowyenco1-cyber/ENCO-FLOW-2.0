@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { sanitizeDocumentHtml } from './DocumentTemplateService';
+import { normalizeDocumentEditorHtml } from './DocumentTemplateService';
 
 type Props = {
   html: string;
@@ -13,13 +13,17 @@ export const DocumentPreviewEditor: React.FC<Props> = ({ html, resetToken, edita
 
   useEffect(() => {
     if (!contentRef.current) return;
-    contentRef.current.innerHTML = sanitizeDocumentHtml(html);
+    contentRef.current.innerHTML = normalizeDocumentEditorHtml(html);
   }, [resetToken]);
 
   const handleBlur = () => {
     if (!contentRef.current || !editable) return;
-    const clean = sanitizeDocumentHtml(contentRef.current.innerHTML);
-    contentRef.current.innerHTML = clean;
+    const clean = normalizeDocumentEditorHtml(contentRef.current.innerHTML);
+    // Avoid replacing the live editable DOM on every blur. Rewriting innerHTML
+    // can make the browser synthesize a new trailing editable paragraph again.
+    if (contentRef.current.innerHTML !== clean) {
+      contentRef.current.innerHTML = clean;
+    }
     onChange(clean);
   };
 
