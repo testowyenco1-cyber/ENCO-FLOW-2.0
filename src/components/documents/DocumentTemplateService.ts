@@ -47,7 +47,7 @@ const deliveryCell = (row: DocumentRow | undefined): string => {
   if (!row || !asText(row.type)) return '';
   const quantity = asText(row.quantity);
   const unit = asText(row.unit || 'szt.');
-  const amount = quantity && quantity !== '1' ? ' – ' + quantity + ' ' + unit : '';
+  const amount = quantity && (quantity !== '1' || unit !== 'szt.') ? ' – ' + quantity + ' ' + unit : '';
   const details = [row.position, row.notes].map(asText).filter(Boolean).join(' – ');
   return cell(asText(row.type) + amount + (details ? ' – ' + details : ''));
 };
