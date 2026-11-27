@@ -195,7 +195,7 @@ test('current built-in document layout always includes manual device fields and 
   };
 
   const html = buildEnclosureDocumentHtml(data, order);
-  assert.match(html, /document-layout-v2/);
+  assert.match(html, /document-layout-v3/);
   assert.match(html, /document-two-column/);
   assert.match(html, /Warszawa/);
   assert.match(html, /Pyskowice/);
