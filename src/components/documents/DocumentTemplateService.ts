@@ -74,7 +74,7 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
   const heading = [variant, data.oznaczenieStacji, data.nazwaObiektu]
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() || order.projectName || order.orderNumber;
   return `
-    <div class="document-sheet document-layout-v2">
+    <div class="document-sheet document-layout-v3">
       <div class="document-brandline"><span>ENCO</span><span>SP. Z O.O. · DOKUMENTACJA PRODUKCYJNA</span></div>
       <p class="document-kicker">Zlecenie produkcyjne</p>
       <h1>ZLECENIE OBUDOWY</h1>
@@ -141,7 +141,7 @@ export interface VersionedDocumentTemplate {
   rules?: unknown[];
 }
 
-export const CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION = 2;
+export const CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION = 3;
 
 /**
  * Only templates carrying the current layout marker can drive the live document.
@@ -151,7 +151,7 @@ export const CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION = 2;
 export const isCurrentEnclosureDocumentTemplate = (
   template: VersionedDocumentTemplate | null | undefined,
 ): template is VersionedDocumentTemplate =>
-  Boolean(template?.contentHtml?.includes('document-layout-v2'));
+  Boolean(template?.contentHtml?.includes('document-layout-v3'));
 
 
 export const fetchEnclosureDocumentTemplate = async (): Promise<VersionedDocumentTemplate | null> => {
@@ -481,7 +481,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
   ]);
   const dangerousTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'LINK', 'META']);
   const allowedClasses = new Set([
-    'document-sheet', 'document-layout-v2', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column', 'document-order-meta',
+    'document-sheet', 'document-layout-v3', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column', 'document-order-meta',
   ]);
   const allowedStyles = new Set([
     'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color',
