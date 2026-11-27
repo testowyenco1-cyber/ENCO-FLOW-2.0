@@ -77,6 +77,7 @@ export interface EnclosureDocumentData {
   documentContentManual?: boolean;
   __sourceSnapshotApplied?: boolean;
   __templateVersion?: number;
+  __documentLayoutVersion?: number;
   [key: string]: unknown;
 }
 
