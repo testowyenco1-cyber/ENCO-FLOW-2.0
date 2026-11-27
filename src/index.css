@@ -581,6 +581,100 @@ header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > div.abso
 .document-sheet table.document-two-column > tbody > tr > td > table td { padding: 2px 3px !important; }
 .document-sheet .document-footer { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 5px; border-top: 1px solid #cfd8e2; color: #6b7d8e; font-size: 7pt; }
 .document-sheet table, .document-sheet tr { break-inside: avoid; page-break-inside: avoid; }
+
+/* Zlecenie obudowy — układ v4 odwzorowujący zwarte, oryginalne zlecenie ENCO. */
+.document-live-preview > .document-sheet.document-layout-v4 {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+}
+.document-sheet.document-layout-v4 {
+  color: #111 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 8.2pt !important;
+  line-height: 1.13 !important;
+}
+.document-sheet.document-layout-v4 h1.document-document-heading {
+  margin: 0 0 7px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #111 !important;
+  font-size: 9pt !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+  letter-spacing: 0 !important;
+}
+.document-sheet.document-layout-v4 .document-center-meta {
+  margin: 0 0 7px !important;
+  text-align: center !important;
+}
+.document-sheet.document-layout-v4 .document-center-meta p {
+  margin: 1px 0 !important;
+  font-weight: 700 !important;
+}
+.document-sheet.document-layout-v4 p {
+  margin: 2px 0 !important;
+  color: #111 !important;
+  font-size: 8.2pt !important;
+  line-height: 1.13 !important;
+}
+.document-sheet.document-layout-v4 .document-dot {
+  margin-top: 5px !important;
+}
+.document-sheet.document-layout-v4 .document-section-label {
+  margin-top: 7px !important;
+  margin-bottom: 2px !important;
+}
+.document-sheet.document-layout-v4 .document-subheading {
+  margin: 2px 0 !important;
+  text-decoration: underline;
+}
+.document-sheet.document-layout-v4 ul {
+  margin: 2px 0 5px 18px !important;
+  padding: 0 !important;
+  list-style: disc outside !important;
+}
+.document-sheet.document-layout-v4 li {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.13 !important;
+}
+.document-sheet.document-layout-v4 table {
+  width: 100% !important;
+  margin: 4px 0 7px !important;
+  border-collapse: collapse !important;
+  font-size: 8pt !important;
+}
+.document-sheet.document-layout-v4 th,
+.document-sheet.document-layout-v4 td {
+  border: 1px solid #222 !important;
+  padding: 2px 4px !important;
+  color: #111 !important;
+  background: #fff !important;
+  font-size: 8pt !important;
+  line-height: 1.12 !important;
+  vertical-align: top !important;
+}
+.document-sheet.document-layout-v4 th {
+  font-weight: 700 !important;
+  text-align: left !important;
+}
+.document-sheet.document-layout-v4 .document-delivery-table {
+  table-layout: fixed !important;
+}
+.document-sheet.document-layout-v4 .document-delivery-table th,
+.document-sheet.document-layout-v4 .document-delivery-table td {
+  width: 50% !important;
+}
+.document-sheet.document-layout-v4 .document-mounting-heading {
+  margin-top: 7px !important;
+  text-decoration: underline;
+}
+.document-sheet.document-layout-v4 .document-closing-location {
+  margin-top: 8px !important;
+}
+
 @media (max-width: 1279px) {
   .document-preview-stage { padding: 4px; }
   .document-print-target { min-height: 0; padding: 28px 24px; }
