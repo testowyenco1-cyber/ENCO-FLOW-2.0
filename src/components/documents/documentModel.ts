@@ -226,45 +226,28 @@ const relatedSummary = (order: Order, type: string): string => {
   }
 };
 
-const applyDefaultDoorDimensions = (rows: DocumentRow[]): DocumentRow[] => rows.map((row) => {
-  const isTransformerDoor = /trafo|transformator/i.test(row.type);
-  const isStandardDoor = /drzwi (sn|nn)|drzwi sn i nn/i.test(row.type);
-  return {
-    ...row,
-    width: row.width || (isTransformerDoor ? '1170' : isStandardDoor ? '950' : ''),
-    height: row.height || ((isTransformerDoor || isStandardDoor) ? '2100' : ''),
-    category: row.category || row.type,
-  };
-});
-
 const sourceRows = (order: Order, type: string): DocumentRow[] => {
   const related = order.items.find((candidate) => candidate.type === type);
   const details = related?.details || {};
   const rows = details.documentRows || details.pozycje || details.elementy;
-  const normalizeDoorDimensions = type === 'DRZWI' ? applyDefaultDoorDimensions : (sourceRows: DocumentRow[]) => sourceRows;
   if (rows && (!Array.isArray(rows) || rows.length > 0)) {
-    return normalizeDoorDimensions(normalizeDocumentRows(rows, type.toLowerCase()));
+    return normalizeDocumentRows(rows, type.toLowerCase());
   }
   const name = firstText(details.typ, details.rodzaj, details.kategoria, details.nazwa, details.opis);
   if (!name) return [];
-  const defaultDimensions: { width?: string; height?: string } = /trafo|transformator/i.test(name)
-    ? { width: '1170', height: '2100' }
-    : /drzwi (sn|nn)|drzwi sn i nn/i.test(name)
-      ? { width: '950', height: '2100' }
-      : {};
-  return normalizeDoorDimensions([makeRow(type.toLowerCase(), 0, {
+  return normalizeDocumentRows([makeRow(type.toLowerCase(), 0, {
     type: name,
     category: name,
     quantity: firstText(details.ilosc, '1'),
     position: [firstText(details.lokalizacja), firstText(details.dodatkoweWyposazenie), firstText(details.uwagi)].filter(Boolean).join(' — '),
-    width: firstText(details.szerokosc, defaultDimensions.width),
-    height: firstText(details.wysokosc, defaultDimensions.height),
+    width: firstText(details.szerokosc),
+    height: firstText(details.wysokosc),
     wings: firstText(details.skrzydla, details.liczbaSkrzydel),
     openingSide: firstText(details.stronaOtwierania),
     ventilationGrille: Boolean(details.krataWentylacyjna),
     intakeFan: Boolean(details.wentylatorNawiewny),
     exhaustFan: Boolean(details.wentylatorWyciagowy),
-  })]);
+  })], type.toLowerCase());
 };
 
 const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
@@ -277,7 +260,7 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
   // DRZWI position when it contains rows, otherwise retain that legacy list.
   const doorRows = relatedDoorRows.length
     ? relatedDoorRows
-    : applyDefaultDoorDimensions(normalizeDocumentRows(details.slusarka, 'door'));
+    : normalizeDocumentRows(details.slusarka, 'door');
   const stationSize = firstText(details.rozmiar, order.stationSize);
   const stationType = firstText(details.typObudowy, details.typ, stationSize.match(/^(BEK|NZ)\b/i)?.[1] || '');
   const stationVariant = stationSize && stationType && stationSize.toUpperCase().startsWith(stationType.toUpperCase())
