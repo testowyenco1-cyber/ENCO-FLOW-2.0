@@ -362,7 +362,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     ].filter((row) => asText(row.type));
     const scopeLines = scopeRows.map(formatScopeRow);
     const roof = 'Dach ' + [asText(data.dachKlasa) || 'betonowy', asText(data.dachTyp) || 'kopertowy'].join(' ');
-    if (!scopeLines.some((line) => /dach/i.test(line))) scopeLines.push(roof);
+    if (!scopeLines.some((line) => /^dach\\b/i.test(line))) scopeLines.push(roof);
     return listItems(scopeLines, 'document-scope-list');
   }
   if (path === 'derived.colours') {
@@ -374,8 +374,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     const finish = asText(data.tynk) || 'Tynk akrylowy zewnętrzny o strukturze baranka';
     const antiGraffiti = data.antygraffiti === 'Tak' ? ' + powłoka antygraffiti' : '';
     return (colours ? '<p><strong>Kolory:</strong> ' + cell(colours) + '</p>' : '') +
-      '<p>+ ' + cell(finish) + antiGraffiti + '</p>' +
-      (asText(data.opisyDodatkowe) ? '<p>' + cell(data.opisyDodatkowe) + '</p>' : '');
+      '<p>+ ' + cell(finish) + antiGraffiti + '</p>';
   }
   if (path === 'derived.passages') {
     const cableRows = data.przepusty.filter((row) => asText(row.type) && !/hea/i.test(asText(row.type)));
