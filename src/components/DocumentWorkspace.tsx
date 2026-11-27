@@ -6,7 +6,7 @@ import { canEditItemType } from '../types/userRole';
 import { EnclosureDocumentForm } from './documents/EnclosureDocumentForm';
 import { DocumentPreviewEditor } from './documents/DocumentPreviewEditor';
 import { createEnclosureDocumentData, type EnclosureDocumentData } from './documents/documentModel';
-import { buildEnclosureDocumentHtml, CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION, fetchEnclosureDocumentTemplate, isCurrentEnclosureDocumentTemplate, renderVersionedEnclosureTemplate, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './documents/DocumentTemplateService';
+import { buildEnclosureDocumentHtml, CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION, fetchEnclosureDocumentTemplate, isCurrentEnclosureDocumentTemplate, renderVersionedEnclosureTemplate, normalizeDocumentEditorHtml, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './documents/DocumentTemplateService';
 import { updateOrderWithEnclosureDocument } from './documents/DocumentPersistence';
 import { DocumentTemplateEditorModal } from './documents/DocumentTemplateEditorModal';
 import { DocumentDictionariesManager } from './documents/DocumentDictionariesManager';
@@ -214,7 +214,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
     try {
       const nextData = {
         ...data,
-        documentContentHtml: sanitizeDocumentHtml(previewHtml),
+        documentContentHtml: normalizeDocumentEditorHtml(previewHtml),
         documentContentUpdatedAt: new Date().toISOString(),
         documentContentManual: previewChanged,
         // Save the exact template version used to generate the current preview,
