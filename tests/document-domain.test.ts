@@ -457,7 +457,7 @@ test('document editor HTML remains stable through repeated edit and save cycles'
     html = normalizeDocumentEditorHtml(html);
     assert.match(html, /Treść dokumentu/);
     assert.match(html, /document-footer/);
-    assert.doesNotMatch(html, /<div><br><\\/div>|<p><br><\\/p>|<div>&nbsp;<\\/div>/);
+    assert.doesNotMatch(html, /<div><br><\/div>|<p><br><\/p>|<div>&nbsp;<\/div>/);
   }
 
   assert.equal(normalizeDocumentEditorHtml(html), html);
