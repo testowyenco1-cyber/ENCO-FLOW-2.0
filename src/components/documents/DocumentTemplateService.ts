@@ -418,7 +418,7 @@ export const normalizeDocumentEditorHtml = (html: string): string => {
     while (previous !== clean) {
       previous = clean;
       clean = clean.replace(
-        /(?:\\s*<(?:p|div)\\b[^>]*>\\s*(?:(?:<br\\s*\\/?\\s*>|&nbsp;|&#160;|\\s)*)<\\/(?:p|div)>\\s*)+$/gi,
+        /(?:\s*<(?:p|div)\b[^>]*>\s*(?:(?:<br\s*\/?\s*>|&nbsp;|&#160;|\s)*)<\/(?:p|div)>\s*)+$/gi,
         '',
       );
     }
@@ -433,7 +433,7 @@ export const normalizeDocumentEditorHtml = (html: string): string => {
     if (!['P', 'DIV', 'BR'].includes(element.tagName)) return false;
     if (element.tagName === 'BR') return true;
     if (element.querySelector('img, table, hr, input, video, audio')) return false;
-    return !(element.textContent || '').replace(/\\u00a0/g, '').trim();
+    return !(element.textContent || '').replace(/\u00a0/g, '').trim();
   };
   const trimTrailingPlaceholders = (parent: Node): void => {
     while (parent.lastChild && isEmptyPlaceholder(parent.lastChild)) {
