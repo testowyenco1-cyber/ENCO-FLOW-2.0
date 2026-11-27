@@ -80,8 +80,8 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
       <h1>ZLECENIE OBUDOWY</h1>
       <h2 class="document-title">${escapeHtml(heading)}</h2>
       ${paragraph('DOT.', [heading, data.dotExtra].filter(Boolean).join(' — '))}
-      ${table(['Nr ZL', 'Nr ZD', 'Data ZD', 'Data wystawienia', 'Termin realizacji'], '<tr>' +
-        [data.numerZL, data.numerZD, datePL(data.dataZD), datePL(data.dataWystawienia), datePL(data.terminRealizacji)]
+      ${table(['Nr ZL', 'Termin realizacji', 'Data ZD', 'Data wystawienia'], '<tr>' +
+        [data.numerZL, datePL(data.terminRealizacji), datePL(data.dataZD), datePL(data.dataWystawienia)]
           .map((value) => '<td>' + cell(value) + '</td>').join('') + '</tr>', 'document-order-meta')}
       <h2>1. Typ obudowy i zakres wykonania</h2>
       ${paragraph('Typ budowli', data.typBudowli)}
