@@ -297,7 +297,7 @@ const formatScopeRow = (row: DocumentRow): string => {
     row.exhaustFan ? 'wentylator wyciągowy' : '',
     row.notes,
   ].map(asText).filter(Boolean).join(' – ');
-  const type = /^hea\\b/i.test(asText(row.type)) ? 'przepust HEA' : asText(row.type);
+  const type = /^hea\b/i.test(asText(row.type)) ? 'przepust HEA' : asText(row.type);
   return quantity + ' x ' + type + (details ? ' – ' + details : '');
 };
 
@@ -331,7 +331,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
   const titleVariant = data.rozmiar && data.typObudowy && data.rozmiar.toUpperCase().startsWith(data.typObudowy.toUpperCase())
     ? data.rozmiar
     : [data.typObudowy, data.rozmiar].filter(Boolean).join(' ');
-  const title = [titleVariant, data.oznaczenieStacji, data.nazwaObiektu].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim() || order.projectName || order.orderNumber;
+  const title = [titleVariant, data.oznaczenieStacji, data.nazwaObiektu].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() || order.projectName || order.orderNumber;
   if (path === 'derived.zdHeader') {
     const zdNumber = asText(data.numerZD);
     const zdDate = asText(data.dataZD);
