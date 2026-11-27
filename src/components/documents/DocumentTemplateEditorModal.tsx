@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, ShieldCheck, RotateCcw } from 'lucide-react';
 import { DocumentPreviewEditor } from './DocumentPreviewEditor';
-import { normalizeDocumentEditorHtml, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './DocumentTemplateService';
+import { DEFAULT_ENCLOSURE_TEMPLATE_HTML, normalizeDocumentEditorHtml, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './DocumentTemplateService';
 
 type Props = {
   template: VersionedDocumentTemplate | null;
@@ -9,12 +9,12 @@ type Props = {
   onPublished: (template: VersionedDocumentTemplate) => void;
 };
 
-const DEFAULT_TEMPLATE_HTML = "<div class=\"document-sheet document-layout-v3\">\n<div class=\"document-brandline\"><span>ENCO</span><span>SP. Z O.O. · DOKUMENTACJA PRODUKCYJNA</span></div>\n<p class=\"document-kicker\">Zlecenie produkcyjne</p>\n<h1>ZLECENIE OBUDOWY</h1>\n<h2 class=\"document-title\">{{derived.title}}</h2>\n<p><strong>DOT.:</strong> {{derived.dot}}</p>\n<table class=\"document-order-meta\"><thead><tr><th>Nr ZL</th><th>Termin realizacji</th><th>Data ZD</th><th>Data wystawienia</th></tr></thead><tbody><tr><td>{{form.numerZL}}</td><td>{{form.terminRealizacji}}</td><td>{{form.dataZD}}</td><td>{{form.dataWystawienia}}</td></tr></tbody></table>\n<h2>1. Typ obudowy i zakres wykonania</h2>\n<p><strong>Typ budowli:</strong> {{form.typBudowli}}</p><p><strong>Opis zakresu:</strong> {{form.opisObudowy}}</p>\n<table><thead><tr><th>Długość / głębokość</th><th>Szerokość</th><th>Wysokość</th><th>Konstrukcja</th></tr></thead><tbody><tr><td>{{form.dlugosc}}</td><td>{{form.szerokosc}}</td><td>{{form.wysokosc}}</td><td>{{form.konstrukcja}}</td></tr></tbody></table>\n<p><strong>Ściany:</strong> {{form.scianyIlosc}} · {{form.scianyKlasa}}</p><p><strong>Dach:</strong> {{form.dachTyp}} · {{form.dachKlasa}}</p>\n<h2>2. Drzwi, ślusarka i mniejsze elementy</h2><h3>Drzwi i ślusarka</h3>{{derived.doors}}\n<h3>Pozostałe elementy do zamontowania</h3>{{derived.smallElements}}\n<h2>3. Kolory i wykończenie elewacji</h2>{{derived.colours}}\n<h2>4. Przepusty kablowe i otwory</h2><h3>Przepusty kablowe</h3>{{derived.passages}}<h3>Pozostałe otwory</h3>{{derived.openings}}\n<h2>5. Główne urządzenia i instalacje</h2>{{derived.mainEquipment}}\n<h2>6. Zestawienie dostaw</h2>{{derived.deliveryLists}}\n<h2>7. Wykonanie montażu stacji</h2>{{derived.mountingSection}}\n<h2>Uwagi końcowe</h2><p>{{form.uwagi}}</p>\n<div class=\"document-footer\"><span>ENCO Sp. z o.o.</span><span>{{form.numerZL}}</span></div>\n</div>";
+const DEFAULT_TEMPLATE_HTML = DEFAULT_ENCLOSURE_TEMPLATE_HTML;
 
 export const DocumentTemplateEditorModal: React.FC<Props> = ({ template, onClose, onPublished }) => {
   const [title, setTitle] = useState(template?.title || 'Wzorzec zlecenia obudowy');
   const [html, setHtml] = useState(() => sanitizeDocumentHtml(
-    template?.contentHtml?.includes('document-layout-v3') ? template.contentHtml : DEFAULT_TEMPLATE_HTML,
+    template?.contentHtml?.includes('document-layout-v4') ? template.contentHtml : DEFAULT_TEMPLATE_HTML,
   ));
   const [resetToken, setResetToken] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -68,7 +68,7 @@ export const DocumentTemplateEditorModal: React.FC<Props> = ({ template, onClose
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 md:px-6">
           <label className="block max-w-xl"><span className="mb-1 block text-xs font-semibold text-slate-600">Nazwa wzorca</span><input value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"/></label>
-          <p className="mt-2 text-[11px] text-slate-500">Edytuj tekst, nagłówki i tabele bezpośrednio na stronie. Pola automatyczne pozostaw w podwójnych nawiasach, np. <code>{'{{form.numerZL}}'}</code> i <code>{'{{derived.title}}'}</code>. Dostępne zestawienia: <code>{'{{derived.smallElements}}'}</code>, <code>{'{{derived.colours}}'}</code>, <code>{'{{derived.passages}}'}</code>, <code>{'{{derived.mainEquipment}}'}</code>, <code>{'{{derived.deliveryLists}}'}</code>, <code>{'{{derived.mountingSection}}'}</code>. Dane formularza: <code>{'{{form.nazwaPola}}'}</code>; dane zlecenia: <code>{'{{order.nazwaPola}}'}</code>.</p>
+          <p className="mt-2 text-[11px] text-slate-500">Edytuj tekst, nagłówki i tabele bezpośrednio na stronie. Pola automatyczne pozostaw w podwójnych nawiasach, np. <code>{'{{form.numerZL}}'}</code> i <code>{'{{derived.title}}'}</code>. Dostępne zestawienia: <code>{'{{derived.enclosureScope}}'}</code>, <code>{'{{derived.colours}}'}</code>, <code>{'{{derived.passages}}'}</code>, <code>{'{{derived.mainEquipment}}'}</code>, <code>{'{{derived.deliveryLists}}'}</code>, <code>{'{{derived.mountingSection}}'}</code>. Dane formularza: <code>{'{{form.nazwaPola}}'}</code>; dane zlecenia: <code>{'{{order.nazwaPola}}'}</code>.</p>
           {template?.version ? <p className="mt-1 text-[11px] font-semibold text-blue-700">Aktualnie opublikowana wersja: v{template.version}{template.updatedAt ? ' · ' + new Date(template.updatedAt).toLocaleString('pl-PL') : ''}</p> : <p className="mt-1 text-[11px] text-amber-700">To pierwszy wzorzec — publikacja utworzy wersję 1.</p>}
         </div>
         <main className="min-h-0 flex-1 overflow-y-auto bg-slate-200/60 p-3 md:p-5">
