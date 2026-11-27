@@ -362,7 +362,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     ].filter((row) => asText(row.type));
     const scopeLines = scopeRows.map(formatScopeRow);
     const roof = 'Dach ' + [asText(data.dachKlasa) || 'betonowy', asText(data.dachTyp) || 'kopertowy'].join(' ');
-    if (!scopeLines.some((line) => /^dach\\b/i.test(line))) scopeLines.push(roof);
+    if (!scopeLines.some((line) => line.trim().toLocaleLowerCase('pl-PL').startsWith('dach '))) scopeLines.push(roof);
     return listItems(scopeLines, 'document-scope-list');
   }
   if (path === 'derived.colours') {
