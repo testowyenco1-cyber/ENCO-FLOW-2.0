@@ -42,6 +42,19 @@ const table = (headers: string[], body: string) =>
   '</tr></thead><tbody>' + body + '</tbody></table>';
 const paragraph = (label: string, value: unknown) => asText(value)
   ? '<p><strong>' + escapeHtml(label) + ':</strong> ' + cell(value) + '</p>' : '';
+const colourTable = (data: EnclosureDocumentData): string => {
+  const rows: Array<[string, string]> = [
+    ['Obudowa / elewacja', data.kolorObudowy],
+    ['Ślusarka', data.kolorSlusarki],
+    ['Dach', data.kolorDachu],
+    ['Drzwi i kraty', data.kolorDrzwiKraty],
+  ].filter((entry): entry is [string, string] => Boolean(asText(entry[1])));
+  if (!rows.length) return '';
+  return table(
+    ['Element', 'Kolor (RAL)'],
+    rows.map(([label, value]) => '<tr><td>' + escapeHtml(label) + '</td><td>' + cell(value) + '</td></tr>').join(''),
+  );
+};
 
 export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: Order): string => {
   const variant = data.rozmiar && data.typObudowy && data.rozmiar.toUpperCase().startsWith(data.typObudowy.toUpperCase())
@@ -80,8 +93,7 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
         rowsHtml(getSmallElementRows(data), ['category', 'type', 'quantityWithUnit', 'mountingDetails']),
       )}
       <h2>3. Kolory i wykończenie elewacji</h2>
-      ${table(['Obudowa', 'Ślusarka', 'Dach', 'Drzwi i kraty'], '<tr>' +
-        [data.kolorObudowy, data.kolorSlusarki, data.kolorDachu, data.kolorDrzwiKraty].map(cell).map((v) => '<td>' + v + '</td>').join('') + '</tr>')}
+      ${colourTable(data)}
       ${paragraph('Tynk', data.tynk)}
       ${paragraph('Struktura', data.tynkStruktura)}
       ${paragraph('Powłoka antygraffiti', data.antygraffiti)}
@@ -294,7 +306,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
     );
   }
   if (path === 'derived.colours') {
-    return table(['Obudowa', 'Ślusarka', 'Dach', 'Drzwi i kraty'], '<tr>' + [data.kolorObudowy, data.kolorSlusarki, data.kolorDachu, data.kolorDrzwiKraty].map(cell).map((value) => '<td>' + value + '</td>').join('') + '</tr>') +
+    return colourTable(data) +
       paragraph('Tynk', data.tynk) + paragraph('Struktura', data.tynkStruktura) + paragraph('Antygraffiti', data.antygraffiti) + paragraph('Dodatkowe opisy', data.opisyDodatkowe);
   }
   if (path === 'derived.doors') {
