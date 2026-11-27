@@ -244,6 +244,31 @@ test('empty automatic fields remove their whole label paragraph or table row', (
   assert.doesNotMatch(rendered, /—/);
 });
 
+test('legacy additional equipment remains visible when the repeatable small-elements list is empty', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data: EnclosureDocumentData = {
+    ...createEnclosureDocumentData(order),
+    drobneElementy: [],
+    dodatkoweWyposazenie: ['Otwór do anteny', 'Kieszeń na schemat'],
+  };
+  const template: VersionedDocumentTemplate = {
+    key: 'zlecenie-obudowy',
+    title: 'Legacy small elements test',
+    version: 1,
+    contentHtml: '<div><h3>Pozostałe elementy do zamontowania</h3><p>{{form.drobneElementy}}</p></div>',
+    sections: [],
+    fields: [],
+    rules: [],
+  };
+
+  const rendered = renderVersionedEnclosureTemplate(template, data, order);
+
+  assert.match(rendered, /Pozostałe elementy do zamontowania/);
+  assert.match(rendered, /Otwór do anteny/);
+  assert.match(rendered, /Kieszeń na schemat/);
+  assert.match(rendered, /<table>/);
+});
+
 test('array-backed document rows are not mistaken for empty fields', () => {
   const order = makeOrder([legacyEnclosure]);
   const data = createEnclosureDocumentData(order);
