@@ -221,7 +221,10 @@ const relatedSummary = (order: Order, type: string): string => {
     }
     case 'ROZDZIELNICA_NN': {
       const count = firstText(d.iloscPol, d.liczbaPol);
-      return sourceSummary(firstText(d.typRozdzielnicy, d.typ), count ? count + ' pól' : '', firstText(d.wyposazenieDodatkowe, d.wyposazenie, d.konfiguracja)) || asText(related.notes);
+      // Keep the document aligned with the NN order form: RTS-z is its visible
+      // default, while an explicitly selected RTS-w must always take precedence.
+      const switchboardType = firstText(d.typRozdzielnicy, d.typ, 'RTS-z');
+      return sourceSummary(switchboardType, count ? count + ' pól' : '', firstText(d.wyposazenieDodatkowe, d.wyposazenie, d.konfiguracja)) || asText(related.notes);
     }
     case 'OPISY':
       return sourceSummary(labelledSource('Wymagane opisy', d.wymaganeOpisy), labelledSource('Sposób wykonania', d.sposobWykonania)) || asText(related.notes);
