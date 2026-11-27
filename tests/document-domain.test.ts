@@ -107,19 +107,26 @@ test('imports legacy OBUDOWA details and preserves separate delivery lists', () 
   assert.equal(data.uwagi, 'Zdjęcia stacji umieścić na serwerze.');
 });
 
-test('dedicated DRZWI position takes priority, with OBUDOWA rows as legacy fallback', () => {
-  const dedicated = makeItem('door-1', 'DRZWI', {
+test('door dimensions are optional and manually supplied dimensions are preserved', () => {
+  const dedicatedWithoutSize = makeItem('door-1', 'DRZWI', {
     documentRows: [{ id: 'door-new', type: 'Drzwi Trafo', quantity: '1', position: 'Strona transformatora' }],
   });
-  const withDedicated = createEnclosureDocumentData(makeOrder([legacyEnclosure, dedicated]));
+  const withDedicated = createEnclosureDocumentData(makeOrder([legacyEnclosure, dedicatedWithoutSize]));
   assert.equal(withDedicated.slusarka[0]?.type, 'Drzwi Trafo');
-  assert.equal(withDedicated.slusarka[0]?.width, '1170');
-  assert.equal(withDedicated.slusarka[0]?.height, '2100');
+  assert.equal(withDedicated.slusarka[0]?.width, undefined);
+  assert.equal(withDedicated.slusarka[0]?.height, undefined);
 
   const withoutDedicated = createEnclosureDocumentData(makeOrder([legacyEnclosure]));
   assert.equal(withoutDedicated.slusarka[0]?.type, 'Drzwi SN');
-  assert.equal(withoutDedicated.slusarka[0]?.width, '950');
-  assert.equal(withoutDedicated.slusarka[0]?.height, '2100');
+  assert.equal(withoutDedicated.slusarka[0]?.width, undefined);
+  assert.equal(withoutDedicated.slusarka[0]?.height, undefined);
+
+  const dedicatedWithSize = makeItem('door-2', 'DRZWI', {
+    documentRows: [{ id: 'door-manual', type: 'Drzwi SN', quantity: '1', width: '1050', height: '2150' }],
+  });
+  const withManualSize = createEnclosureDocumentData(makeOrder([legacyEnclosure, dedicatedWithSize]));
+  assert.equal(withManualSize.slusarka[0]?.width, '1050');
+  assert.equal(withManualSize.slusarka[0]?.height, '2150');
 });
 
 test('small elements merge legacy extras into one categorized list with quantities', () => {
@@ -254,6 +261,32 @@ test('filled automatic fields remain visible in the generated document', () => {
 
   assert.match(rendered, /Powłoka antygraffiti/);
   assert.match(rendered, /Tak/);
+});
+
+test('colour summary only displays the elements with an explicitly supplied colour', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data: EnclosureDocumentData = {
+    ...createEnclosureDocumentData(order),
+    kolorObudowy: 'RAL 7035',
+    kolorSlusarki: '',
+    kolorDachu: '',
+    kolorDrzwiKraty: '',
+  };
+  const template: VersionedDocumentTemplate = {
+    key: 'zlecenie-obudowy',
+    title: 'Colour visibility test',
+    version: 1,
+    contentHtml: '<div>{{derived.colours}}</div>',
+    sections: [],
+    fields: [],
+    rules: [],
+  };
+
+  const rendered = renderVersionedEnclosureTemplate(template, data, order);
+
+  assert.match(rendered, /Obudowa \\/ elewacja/);
+  assert.match(rendered, /RAL 7035/);
+  assert.doesNotMatch(rendered, /Ślusarka|Dach|Drzwi i kraty/);
 });
 
 test('document save writes the instance into the existing OBUDOWA form path', () => {
