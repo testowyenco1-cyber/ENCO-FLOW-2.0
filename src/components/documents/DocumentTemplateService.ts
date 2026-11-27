@@ -236,10 +236,29 @@ const getResolvedTemplatePathValue = (
   return value;
 };
 
+const hasTemplateContent = (value: unknown): boolean => {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) {
+    return value.some((entry) => {
+      if (entry && typeof entry === 'object') {
+        const row = entry as Partial<DocumentRow>;
+        return typeof row.type === 'string'
+          ? Boolean(row.type.trim())
+          : Object.values(entry as Record<string, unknown>).some(hasTemplateContent);
+      }
+      return hasTemplateContent(entry);
+    });
+  }
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some(hasTemplateContent);
+  }
+  return asText(value).length > 0;
+};
+
 const omitEmptyTemplateBlocks = (html: string, isEmptyPath: (path: string) => boolean): string => {
   let result = html;
-  // Remove the whole labelled block when every automatic value inside it is empty.
-  // Table rows are processed first so labels in their sibling cells disappear too.
+  // Remove the complete labelled paragraph or table row only if every bound
+  // field in that block is empty. Array-backed document tables count as content.
   for (const tag of ['tr', 'p', 'li', 'h1', 'h2', 'h3', 'h4']) {
     const blockPattern = new RegExp('<' + tag + '\\b[^>]*>([\\s\\S]*?)<\\/' + tag + '\\s*>', 'gi');
     result = result.replace(blockPattern, (block, inner: string) => {
@@ -312,7 +331,7 @@ export const renderVersionedEnclosureTemplate = (
   const safeTemplate = sanitizeDocumentHtml(template.contentHtml);
   const preparedTemplate = omitEmptyTemplateBlocks(
     safeTemplate,
-    (path) => !asText(getResolvedTemplatePathValue(path, data, order, template)),
+    (path) => !hasTemplateContent(getResolvedTemplatePathValue(path, data, order, template)),
   );
   const rendered = preparedTemplate.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match, path: string) => {
     const derived = renderDerivedTemplateToken(path, data, order);
