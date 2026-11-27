@@ -563,6 +563,14 @@ header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > div.abso
 .document-sheet h3 { margin: 5px 0 2px !important; color: #3b536c; font-size: 7.8pt !important; font-weight: 700 !important; }
 .document-sheet p { margin: 2px 0 !important; line-height: 1.2; }
 .document-sheet table { width: 100%; margin: 4px 0 6px !important; border-collapse: collapse !important; font-size: 7.5pt; }
+/* Keep the five-column identification block aligned and prevent the long
+   column captions from forcing the entire first table wider than the page. */
+.document-sheet table.document-order-meta { table-layout: fixed; width: 100%; }
+.document-sheet table.document-order-meta th,
+.document-sheet table.document-order-meta td { width: 20%; min-width: 0; padding: 4px 3px !important; overflow-wrap: anywhere; word-break: normal; }
+.document-sheet table.document-order-meta th { font-size: 6.6pt; line-height: 1.12; }
+.document-sheet table.document-order-meta td { font-size: 7.2pt; line-height: 1.15; }
+
 .document-sheet th, .document-sheet td { border: 1px solid #cfd8e2 !important; padding: 3px 4px !important; vertical-align: top; }
 .document-sheet th { background: #edf2f7; color: #304c67; font-size: 7pt; text-align: left; }
 .document-sheet td { min-width: 25px; }
