@@ -96,6 +96,8 @@ test('imports legacy OBUDOWA details and preserves separate delivery lists', () 
   assert.equal(data.dachKlasa, 'REI 60');
   assert.equal(data.kolorObudowy, 'RAL 7035');
   assert.equal(data.antygraffiti, 'Nie');
+  assert.equal(data.tynk, 'Tynk akrylowy zewnętrzny o strukturze baranka');
+  assert.equal(data.tynkStruktura, '');
   assert.equal(data.slusarka[0]?.type, 'Drzwi SN');
   assert.equal(data.dostawaWarszawa[0]?.type, 'Most SN z głowicami');
   assert.equal(data.dostawaPyskowice[0]?.type, 'Zaciski krzyżowe');
@@ -127,6 +129,27 @@ test('door dimensions are optional and manually supplied dimensions are preserve
   const withManualSize = createEnclosureDocumentData(makeOrder([legacyEnclosure, dedicatedWithSize]));
   assert.equal(withManualSize.slusarka[0]?.width, '1050');
   assert.equal(withManualSize.slusarka[0]?.height, '2150');
+});
+
+test('anti-graffiti is a Tak/Nie option and the standard facade finish is fixed', () => {
+  const order = makeOrder([
+    makeItem('obudowa-yes', 'OBUDOWA', {
+      antygraffiti: true,
+      tynk: 'Tynk mineralny',
+      tynkStruktura: 'Gładki',
+    }),
+  ]);
+  const data = createEnclosureDocumentData(order);
+  assert.equal(data.antygraffiti, 'Tak');
+  assert.equal(data.tynk, 'Tynk akrylowy zewnętrzny o strukturze baranka');
+  assert.equal(data.tynkStruktura, '');
+
+  const html = buildEnclosureDocumentHtml(data, order);
+  assert.match(html, /Wykończenie elewacji/);
+  assert.match(html, /Tynk akrylowy zewnętrzny o strukturze baranka/);
+  assert.match(html, /Powłoka antygraffiti/);
+  assert.match(html, />Tak</);
+  assert.doesNotMatch(html, /Struktura:<\\/strong>/);
 });
 
 test('small elements merge legacy extras into one categorized list with quantities', () => {
