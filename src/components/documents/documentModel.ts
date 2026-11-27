@@ -112,7 +112,12 @@ const normalizeYesNo = (value: unknown): string => {
   if (typeof value === 'boolean') return value ? 'Tak' : 'Nie';
   const normalized = asText(value).toLocaleLowerCase('pl-PL');
   if (!normalized) return 'Nie';
-  if (/^(nie|no|false|0|brak|niewymagan[ay]?|nie dotyczy)\\b/.test(normalized)) return 'Nie';
+  if (
+    normalized === 'nie' || normalized.startsWith('nie ') ||
+    normalized === 'no' || normalized === 'false' || normalized === '0' ||
+    normalized === 'brak' || normalized.startsWith('niewymagan') ||
+    normalized === 'nie dotyczy'
+  ) return 'Nie';
   return 'Tak';
 };
 
