@@ -402,6 +402,67 @@ export const renderVersionedEnclosureTemplate = (
   return sanitizeDocumentHtml(cleaned);
 };
 
+/**
+ * Normalize the fragment emitted by contentEditable before it is stored.
+ * Chromium may append empty DIV/P blocks after the last document element when
+ * the caret leaves an editable region. Persisting those placeholders makes
+ * another blank paragraph appear after every edit/reopen cycle.
+ */
+export const normalizeDocumentEditorHtml = (html: string): string => {
+  let clean = sanitizeDocumentHtml(html);
+
+  if (typeof DOMParser === 'undefined') {
+    // The browser path below is authoritative. This fallback also makes the
+    // normalizer deterministic in the Node-based domain tests.
+    let previous = '';
+    while (previous !== clean) {
+      previous = clean;
+      clean = clean.replace(
+        /(?:\\s*<(?:p|div)\\b[^>]*>\\s*(?:(?:<br\\s*\\/?\\s*>|&nbsp;|&#160;|\\s)*)<\\/(?:p|div)>\\s*)+$/gi,
+        '',
+      );
+    }
+    return clean;
+  }
+
+  const parsed = new DOMParser().parseFromString(clean, 'text/html');
+  const isEmptyPlaceholder = (node: Node): boolean => {
+    if (node.nodeType === Node.TEXT_NODE) return !(node.textContent || '').trim();
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    const element = node as HTMLElement;
+    if (!['P', 'DIV', 'BR'].includes(element.tagName)) return false;
+    if (element.tagName === 'BR') return true;
+    if (element.querySelector('img, table, hr, input, video, audio')) return false;
+    return !(element.textContent || '').replace(/\\u00a0/g, '').trim();
+  };
+  const trimTrailingPlaceholders = (parent: Node): void => {
+    while (parent.lastChild && isEmptyPlaceholder(parent.lastChild)) {
+      parent.removeChild(parent.lastChild);
+    }
+  };
+
+  const sheets = Array.from(parsed.querySelectorAll('.document-sheet'));
+  for (const sheet of sheets) {
+    // Remove empty browser-created blocks at the end of the page body.
+    trimTrailingPlaceholders(sheet);
+    // contentEditable sometimes puts its terminal placeholder next to the
+    // document sheet rather than inside it.
+    if (sheet.parentNode) {
+      let next = sheet.nextSibling;
+      while (next && isEmptyPlaceholder(next)) {
+        const remove = next;
+        next = next.nextSibling;
+        sheet.parentNode.removeChild(remove);
+      }
+    }
+  }
+
+  return Array.from(parsed.body.childNodes).map((node) => {
+    if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.textContent || '');
+    return (node as Element).outerHTML || '';
+  }).join('').slice(0, 500000);
+};
+
 export const sanitizeDocumentHtml = (html: string): string => {
   const source = String(html || '').slice(0, 500000);
   if (typeof DOMParser === 'undefined') {
