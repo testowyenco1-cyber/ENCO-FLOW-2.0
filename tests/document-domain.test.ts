@@ -209,6 +209,8 @@ test('document generator and legacy array tokens render structured tables', () =
   const data = createEnclosureDocumentData(order);
   const localHtml = buildEnclosureDocumentHtml(data, order);
   assert.match(localHtml, /ZLECENIE OBUDOWY/);
+  assert.match(localHtml, /document-order-meta/);
+
   assert.match(localHtml, /Most SN z głowicami/);
   assert.match(localHtml, /Zaciski krzyżowe/);
   assert.match(localHtml, /Grupa/);
