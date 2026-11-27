@@ -107,6 +107,8 @@ const firstText = (...values: unknown[]): string => {
 };
 
 const DEFAULT_ENCLOSURE_FINISH = 'Tynk akrylowy zewnętrzny o strukturze baranka';
+const DEFAULT_FACADE_COLOUR = 'RAL 1013';
+const DEFAULT_ROOF_METALWORK_COLOUR = 'RAL 8014';
 
 const normalizeYesNo = (value: unknown): string => {
   if (typeof value === 'boolean') return value ? 'Tak' : 'Nie';
@@ -282,6 +284,17 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
     ? stationSize
     : [stationType, stationSize].filter(Boolean).join(' ');
 
+  const facadeColour = firstText(
+    colors.kolorObudowy, details.kolorObudowy, details.kolor, DEFAULT_FACADE_COLOUR,
+  );
+  // Roof and metalwork share one colour in the enclosure document. Prefer an
+  // explicitly supplied roof value, then legacy metalwork/door values.
+  const roofMetalworkColour = firstText(
+    colors.kolorDachu, colors.kolorSlusarki, colors.kolorDrzwiKraty, colors.kolorDrzwi, colors.koloryDodatkowe,
+    details.kolorDachu, details.kolorSlusarki, details.kolorDrzwiKraty, details.kolorDrzwi, details.koloryDodatkowe,
+    DEFAULT_ROOF_METALWORK_COLOUR,
+  );
+
   const additionalEquipment = Array.isArray(details.dodatkoweWyposazenie)
     ? details.dodatkoweWyposazenie.map(asText).filter(Boolean)
     : [];
@@ -341,10 +354,10 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
     slusarka: doorRows,
     przepusty: normalizeDocumentRows(details.przepusty, 'przepust'),
     otwory: normalizeDocumentRows(details.otwory, 'otwor'),
-    kolorObudowy: firstText(colors.kolorObudowy, details.kolorObudowy, details.kolor),
-    kolorSlusarki: firstText(colors.kolorSlusarki, colors.kolorDrzwi, details.kolorSlusarki, details.kolorDrzwi),
-    kolorDachu: firstText(colors.kolorDachu, colors.koloryDodatkowe, details.kolorDachu, details.koloryDodatkowe),
-    kolorDrzwiKraty: firstText(colors.kolorDrzwiKraty, colors.kolorDrzwi, details.kolorDrzwiKraty, details.kolorDrzwi),
+    kolorObudowy: facadeColour,
+    kolorSlusarki: roofMetalworkColour,
+    kolorDachu: roofMetalworkColour,
+    kolorDrzwiKraty: roofMetalworkColour,
     // The enclosure uses one fixed finish standard; the user only decides whether
     // the optional anti-graffiti coating is required.
     tynk: DEFAULT_ENCLOSURE_FINISH,
@@ -390,6 +403,16 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
   hydrated.tynk = DEFAULT_ENCLOSURE_FINISH;
   hydrated.tynkStruktura = '';
   hydrated.antygraffiti = normalizeYesNo(savedData.antygraffiti ?? base.antygraffiti);
+  // Older saved forms stored roof, metalwork, and door/grille colours separately.
+  // Consolidate them into one value while keeping the legacy aliases in sync.
+  hydrated.kolorObudowy = firstText(savedData.kolorObudowy, base.kolorObudowy, DEFAULT_FACADE_COLOUR);
+  const savedRoofMetalworkColour = firstText(
+    savedData.kolorDachu, savedData.kolorSlusarki, savedData.kolorDrzwiKraty,
+    base.kolorDachu, DEFAULT_ROOF_METALWORK_COLOUR,
+  );
+  hydrated.kolorDachu = savedRoofMetalworkColour;
+  hydrated.kolorSlusarki = savedRoofMetalworkColour;
+  hydrated.kolorDrzwiKraty = savedRoofMetalworkColour;
   if (!savedData.__sourceSnapshotApplied) {
     for (const [key, sourceValue] of Object.entries(base)) {
       const savedValue = (savedData as Record<string, unknown>)[key];
