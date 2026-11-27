@@ -15,7 +15,7 @@ export const escapeHtml = (value: unknown): string => String(value ?? '')
 
 const cell = (value: unknown) => {
   const text = asText(value);
-  return text ? escapeHtml(text).replace(/\r\n?|\n/g, '<br>') : '—';
+  return text ? escapeHtml(text).replace(/\r\n?|\n/g, '<br>') : '';
 };
 const datePL = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value)
   ? value.split('-').reverse().join('.') : value;
@@ -214,6 +214,44 @@ const getTemplatePathValue = (path: string, data: EnclosureDocumentData, order: 
   return undefined;
 };
 
+const getResolvedTemplatePathValue = (
+  path: string,
+  data: EnclosureDocumentData,
+  order: Order,
+  template: VersionedDocumentTemplate,
+): unknown => {
+  const derived = renderDerivedTemplateToken(path, data, order);
+  if (derived !== null) return derived;
+
+  const staticField = path.startsWith('form.')
+    ? template.fields?.find((field) => field.type === 'static' && path === 'form.' + field.valueKey)
+    : undefined;
+  if (staticField) return asText(staticField.defaultValue ?? staticField.helpText ?? staticField.label);
+
+  let value = getTemplatePathValue(path, data, order);
+  if ((path === 'form.dataWystawienia' || path === 'form.dataZD' || path === 'form.terminRealizacji') &&
+      typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    value = value.slice(8, 10) + '.' + value.slice(5, 7) + '.' + value.slice(0, 4);
+  }
+  return value;
+};
+
+const omitEmptyTemplateBlocks = (html: string, isEmptyPath: (path: string) => boolean): string => {
+  let result = html;
+  // Remove the whole labelled block when every automatic value inside it is empty.
+  // Table rows are processed first so labels in their sibling cells disappear too.
+  for (const tag of ['tr', 'p', 'li', 'h1', 'h2', 'h3', 'h4']) {
+    const blockPattern = new RegExp('<' + tag + '\\b[^>]*>([\\s\\S]*?)<\\/' + tag + '\\s*>', 'gi');
+    result = result.replace(blockPattern, (block, inner: string) => {
+      const paths = Array.from(inner.matchAll(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g), (match) => match[1]);
+      return paths.length > 0 && paths.every(isEmptyPath) ? '' : block;
+    });
+  }
+  return result;
+};
+
+const EMPTY_TEMPLATE_VALUE = '\uE000__ENCO_EMPTY_DOCUMENT_FIELD__\uE001';
+
 const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, order: Order): string | null => {
   const titleVariant = data.rozmiar && data.typObudowy && data.rozmiar.toUpperCase().startsWith(data.typObudowy.toUpperCase())
     ? data.rozmiar
@@ -272,17 +310,14 @@ export const renderVersionedEnclosureTemplate = (
   order: Order,
 ): string => {
   const safeTemplate = sanitizeDocumentHtml(template.contentHtml);
-  const rendered = safeTemplate.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match, path: string) => {
+  const preparedTemplate = omitEmptyTemplateBlocks(
+    safeTemplate,
+    (path) => !asText(getResolvedTemplatePathValue(path, data, order, template)),
+  );
+  const rendered = preparedTemplate.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match, path: string) => {
     const derived = renderDerivedTemplateToken(path, data, order);
     if (derived !== null) return derived;
-    const staticField = path.startsWith('form.')
-      ? template.fields?.find((field) => field.type === 'static' && path === 'form.' + field.valueKey)
-      : undefined;
-    if (staticField) return escapeHtml(asText(staticField.defaultValue ?? staticField.helpText ?? staticField.label));
-    let value = getTemplatePathValue(path, data, order);
-    if ((path === 'form.dataWystawienia' || path === 'form.dataZD' || path === 'form.terminRealizacji') && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      value = value.slice(8, 10) + '.' + value.slice(5, 7) + '.' + value.slice(0, 4);
-    }
+    const value = getResolvedTemplatePathValue(path, data, order, template);
     if (Array.isArray(value)) {
       const rows = value.filter((entry) => entry && typeof entry === 'object') as DocumentRow[];
       if (path === 'form.slusarka') {
@@ -307,9 +342,14 @@ export const renderVersionedEnclosureTemplate = (
         : escapeHtml(asText(entry))).filter(Boolean).join('<br>');
     }
     if (value && typeof value === 'object') return escapeHtml(asText(value));
-    return escapeHtml(value === undefined || value === null || value === '' ? '—' : asText(value)).replace(/\r\n?|\n/g, '<br>');
+    const text = asText(value);
+    return text ? escapeHtml(text).replace(/\r\n?|\n/g, '<br>') : EMPTY_TEMPLATE_VALUE;
   });
-  return sanitizeDocumentHtml(rendered);
+  const cleaned = rendered
+    .replace(new RegExp('\\s*(?:·|,|;|—|–|/)\\s*' + EMPTY_TEMPLATE_VALUE, 'g'), '')
+    .replace(new RegExp(EMPTY_TEMPLATE_VALUE + '\\s*(?:·|,|;|—|–|/)\\s*', 'g'), '')
+    .replaceAll(EMPTY_TEMPLATE_VALUE, '');
+  return sanitizeDocumentHtml(cleaned);
 };
 
 export const sanitizeDocumentHtml = (html: string): string => {
