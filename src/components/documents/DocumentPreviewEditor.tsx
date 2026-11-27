@@ -18,13 +18,11 @@ export const DocumentPreviewEditor: React.FC<Props> = ({ html, resetToken, edita
 
   const handleBlur = () => {
     if (!contentRef.current || !editable) return;
-    const clean = normalizeDocumentEditorHtml(contentRef.current.innerHTML);
-    // Avoid replacing the live editable DOM on every blur. Rewriting innerHTML
-    // can make the browser synthesize a new trailing editable paragraph again.
-    if (contentRef.current.innerHTML !== clean) {
-      contentRef.current.innerHTML = clean;
-    }
-    onChange(clean);
+    // Normalize only the value persisted in React state. Never rewrite the live
+    // contentEditable DOM on blur: Chromium may recreate its terminal paragraph
+    // after an innerHTML replacement, so doing this repeatedly can accumulate
+    // empty paragraphs across edit/save/reopen cycles.
+    onChange(normalizeDocumentEditorHtml(contentRef.current.innerHTML));
   };
 
   return (
