@@ -73,7 +73,7 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
   const heading = [variant, data.oznaczenieStacji, data.nazwaObiektu]
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() || order.projectName || order.orderNumber;
   return `
-    <div class="document-sheet">
+    <div class="document-sheet document-layout-v2">
       <div class="document-brandline"><span>ENCO</span><span>SP. Z O.O. · DOKUMENTACJA PRODUKCYJNA</span></div>
       <p class="document-kicker">Zlecenie produkcyjne</p>
       <h1>ZLECENIE OBUDOWY</h1>
@@ -139,6 +139,19 @@ export interface VersionedDocumentTemplate {
   fields?: Array<{ id?: string; type?: string; valueKey?: string; defaultValue?: unknown; helpText?: string; label?: string }>;
   rules?: unknown[];
 }
+
+export const CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION = 2;
+
+/**
+ * Only templates carrying the current layout marker can drive the live document.
+ * Old server-side templates remain available in history/editor, but are not
+ * allowed to silently hide fields or keep the previous page layout.
+ */
+export const isCurrentEnclosureDocumentTemplate = (
+  template: VersionedDocumentTemplate | null | undefined,
+): template is VersionedDocumentTemplate =>
+  Boolean(template?.contentHtml?.includes('document-layout-v2'));
+
 
 export const fetchEnclosureDocumentTemplate = async (): Promise<VersionedDocumentTemplate | null> => {
   try {
@@ -406,7 +419,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
   ]);
   const dangerousTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'LINK', 'META']);
   const allowedClasses = new Set([
-    'document-sheet', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column',
+    'document-sheet', 'document-layout-v2', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column',
   ]);
   const allowedStyles = new Set([
     'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color',
