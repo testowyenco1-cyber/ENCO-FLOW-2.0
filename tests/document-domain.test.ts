@@ -463,6 +463,50 @@ test('document editor HTML remains stable through repeated edit and save cycles'
   assert.equal(normalizeDocumentEditorHtml(html), html);
 });
 
+test('enclosure order uses the compact original layout and paired delivery columns', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data: EnclosureDocumentData = {
+    ...createEnclosureDocumentData(order),
+    numerZD: '85',
+    dataZD: '2026-09-16',
+    numerZL: 'ZL 85/2026',
+    typObudowy: 'NZ',
+    rozmiar: 'NZ 210/240',
+    oznaczenieStacji: 'ST2-2262',
+    nazwaObiektu: 'TAMA',
+    terminRealizacji: '2026',
+    opisObudowy: 'Wykonanie obudowy stacji transformatorowej NZ 210/240 wraz z fundamentem i przepustami kablowymi SN, nN i uziemiającymi.',
+    slusarka: [{ id: 'door-1', type: 'Drzwi dwuskrzydłowe z kratami wentylacyjnymi do rozdzielnicy SN', quantity: '1', position: '' }],
+    drobneElementy: [{ id: 'element-1', type: 'Kieszenie na schemat', quantity: '1', position: '' }],
+    przepusty: [{ id: 'passage-1', type: 'BWS 150', quantity: '2', unit: 'szt.', cableType: 'SN', sealType: 'HRD', sealVariant: '150', position: '' }],
+    rozdzielnicaSN: 'SIEMENS 8DHJ 24 – blue GIS (3 polowa) RRT, 24 kV, 630 A, 16 kA/1s',
+    rozdzielnicaNN: 'RTS-z – 14-polowa',
+    transformator: '630 kVA 15/0,4kV',
+    uziemienie: 'linka',
+    instalacjaOswietleniowa: 'wewnętrzna',
+    dostawaWarszawa: [{ id: 'warsaw-1', type: 'Most SN z głowicami RSES 525B oraz POLT 24C/1XI', quantity: '1', unit: 'szt.', position: '' }],
+    dostawaPyskowice: [{ id: 'pyskowice-1', type: 'Zaciski krzyżowe', quantity: '1', unit: 'szt.', position: '', notes: 'sprawdzić zgodność gwintów z przepustami' }],
+    montazWykonawca: '',
+    montazTermin: '',
+    montazOdpowiedzialny: 'Warszawa',
+  };
+
+  const html = buildEnclosureDocumentHtml(data, order);
+
+  assert.match(html, /document-layout-v4/);
+  assert.match(html, /WYKONANIE STACJI TRANSFORMATOROWEJ NZ 210\\/240 ST2-2262 TAMA/);
+  assert.match(html, /ZD NR 85 z dnia 16\\.09\\.2026/);
+  assert.match(html, /ZL 85\\/2026/);
+  assert.doesNotMatch(html, /ZL ZL/);
+  assert.match(html, /2 x przepust kablowy SN typu BWS 150 wraz z wkładami uszczelniającymi HRD 150/);
+  assert.match(html, /Dostarcza Warszawa/);
+  assert.match(html, /Dostarczają Pyskowice/);
+  assert.match(html, /Zaciski krzyżowe – sprawdzić zgodność gwintów z przepustami/);
+  assert.match(html, /DOTYCZY WYKONANIA MONTAŻU STACJI/);
+  assert.match(html, /Warszawa/);
+  assert.doesNotMatch(html, /Zestawienie dostaw/);
+});
+
 test('HTML sanitizer removes event handlers and script tags', () => {
   const html = sanitizeDocumentHtml('<p onclick="alert(1)">Tekst</p><script>alert(1)</script>');
   assert.match(html, /Tekst/);
