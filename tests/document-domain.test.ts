@@ -146,10 +146,10 @@ test('anti-graffiti is a Tak/Nie option and the standard facade finish is fixed'
   assert.equal(data.tynkStruktura, '');
 
   const html = buildEnclosureDocumentHtml(data, order);
-  assert.match(html, /Wykończenie elewacji/);
+  assert.match(html, /document-layout-v4/);
   assert.match(html, /Tynk akrylowy zewnętrzny o strukturze baranka/);
-  assert.match(html, /Powłoka antygraffiti/);
-  assert.ok(html.includes('Powłoka antygraffiti:</strong> Tak'));
+  assert.match(html, /powłoka antygraffiti/);
+  assert.ok(html.includes('+ powłoka antygraffiti'));
   assert.ok(!html.includes('Struktura:'));
 });
 
@@ -195,8 +195,8 @@ test('current built-in document layout always includes manual device fields and 
   };
 
   const html = buildEnclosureDocumentHtml(data, order);
-  assert.match(html, /document-layout-v3/);
-  assert.match(html, /document-two-column/);
+  assert.match(html, /document-layout-v4/);
+  assert.match(html, /document-delivery-table/);
   assert.match(html, /Warszawa/);
   assert.match(html, /Pyskowice/);
   assert.match(html, /Siemens 8DJH · 3 pola · ręczna konfiguracja/);
@@ -209,19 +209,16 @@ test('document generator and legacy array tokens render structured tables', () =
   const order = makeOrder([legacyEnclosure]);
   const data = createEnclosureDocumentData(order);
   const localHtml = buildEnclosureDocumentHtml(data, order);
-  assert.match(localHtml, /ZLECENIE OBUDOWY/);
-  assert.match(localHtml, /document-order-meta/);
-  const metadataTable = localHtml.split('<table class="document-order-meta">')[1]?.split('</table>')[0] || '';
-  assert.ok(metadataTable, 'first identification table should exist');
-  const metadataHeaders = Array.from(metadataTable.matchAll(new RegExp('<th>([^<]*)</th>', 'g')), (match) => match[1]);
-  assert.deepEqual(metadataHeaders, ['Nr ZL', 'Termin realizacji', 'Data ZD', 'Data wystawienia']);
-  assert.ok(!metadataTable.includes('<th>Nr ZD</th>'));
+  assert.match(localHtml, /WYKONANIE STACJI TRANSFORMATOROWEJ/);
+  assert.match(localHtml, /ZD NR 85/);
+  assert.ok(localHtml.includes('ZL 85/2026'));
+  assert.ok(!localHtml.includes('ZL ZL 85/2026'));
 
   assert.match(localHtml, /Most SN z głowicami/);
   assert.match(localHtml, /Zaciski krzyżowe/);
-  assert.match(localHtml, /Grupa/);
+  assert.match(localHtml, /Kieszeń na schemat/);
   assert.match(localHtml, /Otwór do anteny/);
-  assert.match(localHtml, /2 szt\./);
+  assert.match(localHtml, /2 x/);
 
   const template: VersionedDocumentTemplate = {
     key: 'zlecenie-obudowy',
@@ -237,7 +234,7 @@ test('document generator and legacy array tokens render structured tables', () =
   assert.match(rendered, /Drzwi SN/);
   assert.match(rendered, /Most SN z głowicami/);
   assert.match(rendered, /Siatka wygradzająca na dachu/);
-  assert.match(rendered, /Grupa/);
+  assert.match(rendered, /Kieszeń na schemat/);
   assert.doesNotMatch(rendered, /<script/i);
   assert.doesNotMatch(rendered, /\{\{form\./);
 });
