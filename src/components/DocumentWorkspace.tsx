@@ -43,7 +43,10 @@ export const DocumentWorkspace: React.FC<Props> = ({
   const [formChanged, setFormChanged] = useState(false);
   const [previewChanged, setPreviewChanged] = useState(() => {
     const initial = createEnclosureDocumentData(order);
-    return initial.documentContentManual ?? Boolean(initial.documentContentHtml);
+    // Only an explicit manual-edit marker protects the saved HTML from form updates.
+    // Older generated documents may have HTML without this marker; treating every
+    // such document as manual prevents device and contractor fields from syncing.
+    return initial.documentContentManual === true;
   });
   previewChangedRef.current = previewChanged;
   const [saving, setSaving] = useState(false);
@@ -70,7 +73,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
       : null;
     setPreviewResetToken((value) => value + 1);
     setFormChanged(false);
-    const hasManualPreview = next.documentContentManual ?? Boolean(next.documentContentHtml);
+    const hasManualPreview = next.documentContentManual === true;
     previewChangedRef.current = hasManualPreview;
     setPreviewChanged(hasManualPreview);
     sharedTemplateRef.current = null;
@@ -91,11 +94,14 @@ export const DocumentWorkspace: React.FC<Props> = ({
       sharedTemplateRef.current = template;
       setSharedTemplate(template);
       setTemplateLoading(false);
-      // A stored template snapshot belongs to this document. Only a document
-      // without its own snapshot may adopt the newest shared server version.
-      if (template && allowRender && initial.documentContentHtml === undefined && !previewChangedRef.current) {
-        const nextHtml = renderVersionedEnclosureTemplate(template, dataRef.current, order);
-        previewTemplateRef.current = template;
+      // A stored template snapshot belongs to this document. Generated
+      // documents (including legacy HTML without an explicit manual-edit marker)
+      // must be rebuilt from the form; only explicitly manual content is protected.
+      if (template && !previewChangedRef.current &&
+          (allowRender || initial.documentContentManual !== true)) {
+        const renderTemplate = storedTemplate?.contentHtml ? storedTemplate : template;
+        const nextHtml = renderVersionedEnclosureTemplate(renderTemplate, dataRef.current, order);
+        previewTemplateRef.current = renderTemplate;
         setPreviewHtml(sanitizeDocumentHtml(nextHtml));
         setPreviewResetToken((value) => value + 1);
       }
@@ -130,7 +136,7 @@ export const DocumentWorkspace: React.FC<Props> = ({
     // Keep the generated document live until the user starts editing the page itself.
     // After that point, form edits never overwrite the user's manual wording.
     if (!previewChangedRef.current) {
-      const activeTemplate = sharedTemplateRef.current;
+      const activeTemplate = previewTemplateRef.current ?? sharedTemplateRef.current;
       const html = activeTemplate
         ? renderVersionedEnclosureTemplate(activeTemplate, next, order)
         : buildEnclosureDocumentHtml(next, order);
