@@ -567,8 +567,8 @@ header.sticky.top-0 > div:first-child > div.flex.shrink-0 > div > div > div.abso
    column captions from forcing the entire first table wider than the page. */
 .document-sheet table.document-order-meta { table-layout: fixed; width: 100%; }
 .document-sheet table.document-order-meta th,
-.document-sheet table.document-order-meta td { width: 20%; min-width: 0; padding: 4px 3px !important; overflow-wrap: anywhere; word-break: normal; }
-.document-sheet table.document-order-meta th { font-size: 6.6pt; line-height: 1.12; }
+.document-sheet table.document-order-meta td { width: 25%; min-width: 0; padding: 4px 4px !important; overflow-wrap: anywhere; word-break: normal; }
+.document-sheet table.document-order-meta th { font-size: 7pt; line-height: 1.15; }
 .document-sheet table.document-order-meta td { font-size: 7.2pt; line-height: 1.15; }
 
 .document-sheet th, .document-sheet td { border: 1px solid #cfd8e2 !important; padding: 3px 4px !important; vertical-align: top; }
