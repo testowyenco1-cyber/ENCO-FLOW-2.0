@@ -234,7 +234,7 @@ test('array-backed document rows are not mistaken for empty fields', () => {
   assert.match(rendered, /Drzwi:/);
   assert.match(rendered, /Drzwi SN/);
   assert.match(rendered, /Elementy/);
-  assert.match(rendered, /Kieszeń na schemat/);
+  assert.match(rendered, /Kieszenie na schemat/);
 });
 
 test('filled automatic fields remain visible in the generated document', () => {
