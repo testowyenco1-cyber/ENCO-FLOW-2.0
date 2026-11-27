@@ -110,6 +110,25 @@ test('imports legacy OBUDOWA details and preserves separate delivery lists', () 
   assert.equal(data.uwagi, 'Zdjęcia stacji umieścić na serwerze.');
 });
 
+test('enclosure document reads RTS-z or RTS-w from the NN order item', () => {
+  const rtsZOrder = makeOrder([
+    legacyEnclosure,
+    makeItem('nn-z', 'ROZDZIELNICA_NN', { typRozdzielnicy: 'RTS-z', iloscPol: '14' }),
+  ]);
+  const rtsWOrder = makeOrder([
+    legacyEnclosure,
+    makeItem('nn-w', 'ROZDZIELNICA_NN', { typRozdzielnicy: 'RTS-w', iloscPol: '10' }),
+  ]);
+  const defaultOrder = makeOrder([
+    legacyEnclosure,
+    makeItem('nn-default', 'ROZDZIELNICA_NN', { iloscPol: '8' }),
+  ]);
+
+  assert.match(createEnclosureDocumentData(rtsZOrder).rozdzielnicaNN, /^RTS-z · 14 pól$/);
+  assert.match(createEnclosureDocumentData(rtsWOrder).rozdzielnicaNN, /^RTS-w · 10 pól$/);
+  assert.match(createEnclosureDocumentData(defaultOrder).rozdzielnicaNN, /^RTS-z · 8 pól$/);
+});
+
 test('door dimensions are optional and manually supplied dimensions are preserved', () => {
   const dedicatedWithoutSize = makeItem('door-1', 'DRZWI', {
     documentRows: [{ id: 'door-new', type: 'Drzwi Trafo', quantity: '1', position: 'Strona transformatora' }],
