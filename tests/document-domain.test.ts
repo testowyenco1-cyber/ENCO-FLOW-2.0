@@ -214,6 +214,29 @@ test('empty automatic fields remove their whole label paragraph or table row', (
   assert.doesNotMatch(rendered, /—/);
 });
 
+test('array-backed document rows are not mistaken for empty fields', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data = createEnclosureDocumentData(order);
+  const template: VersionedDocumentTemplate = {
+    key: 'zlecenie-obudowy',
+    title: 'Array fields test',
+    version: 1,
+    contentHtml:
+      '<div><p>Drzwi: {{form.slusarka}}</p>' +
+      '<table><tbody><tr><td>Elementy</td><td>{{form.drobneElementy}}</td></tr></tbody></table></div>',
+    sections: [],
+    fields: [],
+    rules: [],
+  };
+
+  const rendered = renderVersionedEnclosureTemplate(template, data, order);
+
+  assert.match(rendered, /Drzwi:/);
+  assert.match(rendered, /Drzwi SN/);
+  assert.match(rendered, /Elementy/);
+  assert.match(rendered, /Kieszeń na schemat/);
+});
+
 test('filled automatic fields remain visible in the generated document', () => {
   const order = makeOrder([legacyEnclosure]);
   const data = { ...createEnclosureDocumentData(order), antygraffiti: 'Tak' };
