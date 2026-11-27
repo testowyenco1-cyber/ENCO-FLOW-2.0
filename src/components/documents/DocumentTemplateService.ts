@@ -37,8 +37,9 @@ const rowsHtml = (rows: DocumentRow[], columns: string[]) => {
     return '<td>' + cell(value) + '</td>';
   }).join('') + '</tr>').join('');
 };
-const table = (headers: string[], body: string) =>
-  '<table><thead><tr>' + headers.map((header) => '<th>' + escapeHtml(header) + '</th>').join('') +
+const table = (headers: string[], body: string, className = '') =>
+  '<table' + (className ? ' class="' + escapeHtml(className) + '"' : '') + '><thead><tr>' +
+  headers.map((header) => '<th>' + escapeHtml(header) + '</th>').join('') +
   '</tr></thead><tbody>' + body + '</tbody></table>';
 const paragraph = (label: string, value: unknown) => asText(value)
   ? '<p><strong>' + escapeHtml(label) + ':</strong> ' + cell(value) + '</p>' : '';
@@ -81,7 +82,7 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
       ${paragraph('DOT.', [heading, data.dotExtra].filter(Boolean).join(' — '))}
       ${table(['Nr ZL', 'Nr ZD', 'Data ZD', 'Data wystawienia', 'Termin realizacji'], '<tr>' +
         [data.numerZL, data.numerZD, datePL(data.dataZD), datePL(data.dataWystawienia), datePL(data.terminRealizacji)]
-          .map((value) => '<td>' + cell(value) + '</td>').join('') + '</tr>')}
+          .map((value) => '<td>' + cell(value) + '</td>').join('') + '</tr>', 'document-order-meta')}
       <h2>1. Typ obudowy i zakres wykonania</h2>
       ${paragraph('Typ budowli', data.typBudowli)}
       ${paragraph('Opis zakresu', data.opisObudowy)}
@@ -419,7 +420,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
   ]);
   const dangerousTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'LINK', 'META']);
   const allowedClasses = new Set([
-    'document-sheet', 'document-layout-v2', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column',
+    'document-sheet', 'document-layout-v2', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column', 'document-order-meta',
   ]);
   const allowedStyles = new Set([
     'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color',
