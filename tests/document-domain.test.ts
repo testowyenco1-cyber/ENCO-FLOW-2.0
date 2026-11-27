@@ -447,6 +447,22 @@ test('editor HTML normalization removes browser-added trailing empty paragraphs 
   assert.equal(normalizeDocumentEditorHtml(normalized), normalized);
 });
 
+test('document editor HTML remains stable through repeated edit and save cycles', () => {
+  let html = '<div class="document-sheet"><p>Treść dokumentu</p>' +
+    '<div class="document-footer">ENCO</div></div>';
+
+  for (let cycle = 0; cycle < 10; cycle += 1) {
+    // Simulate empty terminal blocks that Chromium may append to contentEditable.
+    html += '<div><br></div><p><br></p><div>&nbsp;</div>';
+    html = normalizeDocumentEditorHtml(html);
+    assert.match(html, /Treść dokumentu/);
+    assert.match(html, /document-footer/);
+    assert.doesNotMatch(html, /<div><br><\\/div>|<p><br><\\/p>|<div>&nbsp;<\\/div>/);
+  }
+
+  assert.equal(normalizeDocumentEditorHtml(html), html);
+});
+
 test('HTML sanitizer removes event handlers and script tags', () => {
   const html = sanitizeDocumentHtml('<p onclick="alert(1)">Tekst</p><script>alert(1)</script>');
   assert.match(html, /Tekst/);
