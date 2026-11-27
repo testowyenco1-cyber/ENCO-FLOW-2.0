@@ -106,6 +106,16 @@ const firstText = (...values: unknown[]): string => {
   return '';
 };
 
+const DEFAULT_ENCLOSURE_FINISH = 'Tynk akrylowy zewnętrzny o strukturze baranka';
+
+const normalizeYesNo = (value: unknown): string => {
+  if (typeof value === 'boolean') return value ? 'Tak' : 'Nie';
+  const normalized = asText(value).toLocaleLowerCase('pl-PL');
+  if (!normalized) return 'Nie';
+  if (/^(nie|no|false|0|brak|niewymagan[ay]?|nie dotyczy)\\b/.test(normalized)) return 'Nie';
+  return 'Tak';
+};
+
 const makeRow = (prefix: string, index: number, value: unknown): DocumentRow => {
   if (typeof value === 'string') {
     return { id: `${prefix}-${index + 1}`, type: value, quantity: '1', position: '' };
@@ -330,9 +340,11 @@ const sourceData = (order: Order, item: OrderItem): EnclosureDocumentData => {
     kolorSlusarki: firstText(colors.kolorSlusarki, colors.kolorDrzwi, details.kolorSlusarki, details.kolorDrzwi),
     kolorDachu: firstText(colors.kolorDachu, colors.koloryDodatkowe, details.kolorDachu, details.koloryDodatkowe),
     kolorDrzwiKraty: firstText(colors.kolorDrzwiKraty, colors.kolorDrzwi, details.kolorDrzwiKraty, details.kolorDrzwi),
-    tynk: firstText(details.tynk, details.wykonczenie, details.materialWykonczenia),
-    tynkStruktura: firstText(details.tynkStruktura, details.strukturaTynku),
-    antygraffiti: firstText(details.antygraffitiStatus, details.antygraffiti),
+    // The enclosure uses one fixed finish standard; the user only decides whether
+    // the optional anti-graffiti coating is required.
+    tynk: DEFAULT_ENCLOSURE_FINISH,
+    tynkStruktura: '',
+    antygraffiti: normalizeYesNo(firstText(details.antygraffitiStatus, details.antygraffiti)),
     opisyDodatkowe: relatedSummary(order, 'OPISY') || firstText(descriptions.documentSummary, details.opisy),
     rozdzielnicaSN: relatedSummary(order, 'ROZDZIELNICA_SN') || firstText(details.rozdzielnicaSN),
     rozdzielnicaNN: relatedSummary(order, 'ROZDZIELNICA_NN') || firstText(details.rozdzielnicaNN),
@@ -368,6 +380,11 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
   // of silently pulling changed source values from the live order on every open.
   const savedData = saved as Partial<EnclosureDocumentData>;
   const hydrated: EnclosureDocumentData = { ...base, ...savedData, __sourceSnapshotApplied: true };
+  // Enclosure finish is a fixed standard, not a per-order choice. Normalize old
+  // saved anti-graffiti values (including booleans) to the explicit Tak/Nie field.
+  hydrated.tynk = DEFAULT_ENCLOSURE_FINISH;
+  hydrated.tynkStruktura = '';
+  hydrated.antygraffiti = normalizeYesNo(savedData.antygraffiti ?? base.antygraffiti);
   if (!savedData.__sourceSnapshotApplied) {
     for (const [key, sourceValue] of Object.entries(base)) {
       const savedValue = (savedData as Record<string, unknown>)[key];
