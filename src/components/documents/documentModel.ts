@@ -403,6 +403,14 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
   hydrated.tynk = DEFAULT_ENCLOSURE_FINISH;
   hydrated.tynkStruktura = '';
   hydrated.antygraffiti = normalizeYesNo(savedData.antygraffiti ?? base.antygraffiti);
+  if (!savedData.__sourceSnapshotApplied) {
+    for (const [key, sourceValue] of Object.entries(base)) {
+      const savedValue = (savedData as Record<string, unknown>)[key];
+      const empty = savedValue === undefined || savedValue === null || savedValue === '' || (Array.isArray(savedValue) && savedValue.length === 0);
+      if (empty && sourceValue !== undefined) (hydrated as Record<string, unknown>)[key] = sourceValue;
+    }
+  }
+
   // Older saved forms stored roof, metalwork, and door/grille colours separately.
   // Consolidate them into one value while keeping the legacy aliases in sync.
   hydrated.kolorObudowy = firstText(savedData.kolorObudowy, base.kolorObudowy, DEFAULT_FACADE_COLOUR);
@@ -413,13 +421,6 @@ export const createEnclosureDocumentData = (order: Order): EnclosureDocumentData
   hydrated.kolorDachu = savedRoofMetalworkColour;
   hydrated.kolorSlusarki = savedRoofMetalworkColour;
   hydrated.kolorDrzwiKraty = savedRoofMetalworkColour;
-  if (!savedData.__sourceSnapshotApplied) {
-    for (const [key, sourceValue] of Object.entries(base)) {
-      const savedValue = (savedData as Record<string, unknown>)[key];
-      const empty = savedValue === undefined || savedValue === null || savedValue === '' || (Array.isArray(savedValue) && savedValue.length === 0);
-      if (empty && sourceValue !== undefined) (hydrated as Record<string, unknown>)[key] = sourceValue;
-    }
-  }
 
   const legacyCustom = savedData.customFields && typeof savedData.customFields === 'object'
     ? savedData.customFields as Record<string, unknown>
