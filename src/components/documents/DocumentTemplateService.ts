@@ -97,7 +97,7 @@ export const DEFAULT_ENCLOSURE_TEMPLATE_HTML = [
   '{{derived.mountingSection}}',
   '<p class="document-closing-location">{{form.montazOdpowiedzialny}}</p>',
   '</div>',
-].join('\\n');
+].join('\n');
 
 export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: Order): string =>
   renderVersionedEnclosureTemplate({
@@ -526,7 +526,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
   ]);
   const dangerousTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'LINK', 'META']);
   const allowedClasses = new Set([
-    'document-sheet', 'document-layout-v3', 'document-layout-v4', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column', 'document-order-meta',
+    'document-sheet', 'document-layout-v3', 'document-layout-v4', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column', 'document-order-meta', 'document-document-heading', 'document-center-meta', 'document-dot', 'document-inline-field', 'document-section-label', 'document-subheading', 'document-scope-list', 'document-passage-list', 'document-equipment-list', 'document-delivery-table', 'document-mounting-heading', 'document-closing-location',
   ]);
   const allowedStyles = new Set([
     'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color',
