@@ -180,6 +180,59 @@ test('document generator and legacy array tokens render structured tables', () =
   assert.doesNotMatch(rendered, /\{\{form\./);
 });
 
+test('empty automatic fields remove their whole label paragraph or table row', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data: EnclosureDocumentData = {
+    ...createEnclosureDocumentData(order),
+    antygraffiti: '',
+    scianyIlosc: '',
+    scianyKlasa: 'REI 120',
+  };
+  const template: VersionedDocumentTemplate = {
+    key: 'zlecenie-obudowy',
+    title: 'Empty fields test',
+    version: 1,
+    contentHtml: '<div>' +
+      '<p><strong>Powłoka antygraffiti:</strong> {{form.antygraffiti}}</p>' +
+      '<table><tbody>' +
+      '<tr><td>Powłoka antygraffiti</td><td>{{form.antygraffiti}}</td></tr>' +
+      '<tr><td>Nr ZD</td><td>{{form.numerZD}}</td></tr>' +
+      '</tbody></table>' +
+      '<p><strong>Ściany:</strong> {{form.scianyIlosc}} · {{form.scianyKlasa}}</p>' +
+      '</div>',
+    sections: [],
+    fields: [],
+    rules: [],
+  };
+
+  const rendered = renderVersionedEnclosureTemplate(template, data, order);
+
+  assert.doesNotMatch(rendered, /Powłoka antygraffiti/);
+  assert.match(rendered, /Nr ZD/);
+  assert.match(rendered, /<td>85<\/td>/);
+  assert.match(rendered, /<strong>Ściany:<\/strong>\s*REI 120/);
+  assert.doesNotMatch(rendered, /—/);
+});
+
+test('filled automatic fields remain visible in the generated document', () => {
+  const order = makeOrder([legacyEnclosure]);
+  const data = { ...createEnclosureDocumentData(order), antygraffiti: 'Tak' };
+  const template: VersionedDocumentTemplate = {
+    key: 'zlecenie-obudowy',
+    title: 'Filled fields test',
+    version: 1,
+    contentHtml: '<p><strong>Powłoka antygraffiti:</strong> {{form.antygraffiti}}</p>',
+    sections: [],
+    fields: [],
+    rules: [],
+  };
+
+  const rendered = renderVersionedEnclosureTemplate(template, data, order);
+
+  assert.match(rendered, /Powłoka antygraffiti/);
+  assert.match(rendered, /Tak/);
+});
+
 test('document save writes the instance into the existing OBUDOWA form path', () => {
   const order = makeOrder([legacyEnclosure]);
   const data: EnclosureDocumentData = {
