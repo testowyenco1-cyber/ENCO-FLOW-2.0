@@ -10,6 +10,7 @@ import {
   buildEnclosureDocumentHtml,
   renderVersionedEnclosureTemplate,
   sanitizeDocumentHtml,
+  normalizeDocumentEditorHtml,
   type VersionedDocumentTemplate,
 } from '../src/components/documents/DocumentTemplateService';
 import { updateOrderWithEnclosureDocument } from '../src/components/documents/DocumentPersistence';
@@ -426,6 +427,17 @@ test('document save writes the instance into the existing OBUDOWA form path', ()
   assert.equal(enclosure.details.formularze.zlecenieObudowy.uwagi, 'Zatwierdzone uwagi');
   assert.match(enclosure.details.formularze.zlecenieObudowy.documentContentHtml, /Gotowy dokument/);
   assert.equal(enclosure.details.dachMaterial, 'Żelbet');
+});
+
+test('editor HTML normalization removes browser-added trailing empty paragraphs idempotently', () => {
+  const html = '<div class="document-sheet"><p>Treść dokumentu</p><div class="document-footer">ENCO</div></div>' +
+    '<div><br></div><p><br></p><div>&nbsp;</div>';
+  const normalized = normalizeDocumentEditorHtml(html);
+
+  assert.match(normalized, /Treść dokumentu/);
+  assert.match(normalized, /document-footer/);
+  assert.doesNotMatch(normalized, /<div><br><\\/div>\\s*<p><br><\\/p>|<div>&nbsp;<\\/div>/);
+  assert.equal(normalizeDocumentEditorHtml(normalized), normalized);
 });
 
 test('HTML sanitizer removes event handlers and script tags', () => {
