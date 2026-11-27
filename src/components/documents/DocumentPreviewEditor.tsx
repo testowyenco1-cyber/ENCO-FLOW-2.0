@@ -22,7 +22,11 @@ export const DocumentPreviewEditor: React.FC<Props> = ({ html, resetToken, edita
     // contentEditable DOM on blur: Chromium may recreate its terminal paragraph
     // after an innerHTML replacement, so doing this repeatedly can accumulate
     // empty paragraphs across edit/save/reopen cycles.
-    onChange(normalizeDocumentEditorHtml(contentRef.current.innerHTML));
+    const currentHtml = contentRef.current.innerHTML;
+    const normalizedHtml = normalizeDocumentEditorHtml(currentHtml);
+    // onInput already forwarded unchanged content. Emit again only when
+    // normalization actually removed browser-generated placeholders.
+    if (currentHtml !== normalizedHtml) onChange(normalizedHtml);
   };
 
   return (
