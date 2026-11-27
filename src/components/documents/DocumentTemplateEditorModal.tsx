@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, ShieldCheck } from 'lucide-react';
 import { DocumentPreviewEditor } from './DocumentPreviewEditor';
-import { sanitizeDocumentHtml, type VersionedDocumentTemplate } from './DocumentTemplateService';
+import { normalizeDocumentEditorHtml, sanitizeDocumentHtml, type VersionedDocumentTemplate } from './DocumentTemplateService';
 
 type Props = {
   template: VersionedDocumentTemplate | null;
@@ -33,7 +33,7 @@ export const DocumentTemplateEditorModal: React.FC<Props> = ({ template, onClose
           template: {
             key: 'zlecenie-obudowy',
             title: title.trim(),
-            contentHtml: sanitizeDocumentHtml(html),
+            contentHtml: normalizeDocumentEditorHtml(html),
             sections: template?.sections || [],
             fields: template?.fields || [],
             rules: template?.rules || [],
