@@ -94,8 +94,7 @@ export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: O
       )}
       <h2>3. Kolory i wykończenie elewacji</h2>
       ${colourTable(data)}
-      ${paragraph('Tynk', data.tynk)}
-      ${paragraph('Struktura', data.tynkStruktura)}
+      ${paragraph('Wykończenie elewacji', data.tynk)}
       ${paragraph('Powłoka antygraffiti', data.antygraffiti)}
       ${paragraph('Dodatkowe opisy / wymagania wykonawcze', data.opisyDodatkowe)}
       <h2>4. Przepusty kablowe i otwory</h2>
@@ -307,7 +306,7 @@ const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, o
   }
   if (path === 'derived.colours') {
     return colourTable(data) +
-      paragraph('Tynk', data.tynk) + paragraph('Struktura', data.tynkStruktura) + paragraph('Antygraffiti', data.antygraffiti) + paragraph('Dodatkowe opisy', data.opisyDodatkowe);
+      paragraph('Wykończenie elewacji', data.tynk) + paragraph('Powłoka antygraffiti', data.antygraffiti) + paragraph('Dodatkowe opisy', data.opisyDodatkowe);
   }
   if (path === 'derived.doors') {
     return table(['Element', 'Ilość', 'Położenie / opis'], rowsHtml(data.slusarka, ['type', 'quantity', 'position']));
