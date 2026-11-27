@@ -49,10 +49,11 @@ export const mergeDocumentDictionaries = (incoming: unknown): DocumentDictionari
   const merged = {} as DocumentDictionaries;
 
   for (const { key } of DOCUMENT_DICTIONARY_CATEGORIES) {
-    const incomingValues = Array.isArray(source[key]) ? source[key] as unknown[] : [];
-    const values = [...DEFAULT_DOCUMENT_DICTIONARIES[key], ...incomingValues];
+    // The server returns the complete resolved list, including user additions
+    // and excluding intentionally removed built-ins. Do not re-add defaults here.
+    const incomingValues = Array.isArray(source[key]) ? source[key] as unknown[] : DEFAULT_DOCUMENT_DICTIONARIES[key];
     const seen = new Set<string>();
-    merged[key] = values
+    merged[key] = incomingValues
       .filter((value): value is string => typeof value === 'string')
       .map((value) => value.trim())
       .filter((value) => {
@@ -89,6 +90,23 @@ export const appendDocumentDictionaryValue = async (
   const result = await response.json().catch(() => null);
   if (!response.ok || !result?.success) {
     throw new Error(result?.error || 'Nie udało się zapisać pozycji w słowniku.');
+  }
+  return mergeDocumentDictionaries(result.dictionaries);
+};
+
+export const removeDocumentDictionaryValue = async (
+  dictionaryKey: DocumentDictionaryKey,
+  value: string,
+): Promise<DocumentDictionaries> => {
+  const response = await fetch('/api/document-form-dictionaries/' + encodeURIComponent(dictionaryKey), {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value }),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.success) {
+    throw new Error(result?.error || 'Nie udało się usunąć pozycji ze słownika.');
   }
   return mergeDocumentDictionaries(result.dictionaries);
 };
