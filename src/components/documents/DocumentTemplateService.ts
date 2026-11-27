@@ -43,14 +43,24 @@ const table = (headers: string[], body: string, className = '') =>
   '</tr></thead><tbody>' + body + '</tbody></table>';
 const paragraph = (label: string, value: unknown) => asText(value)
   ? '<p><strong>' + escapeHtml(label) + ':</strong> ' + cell(value) + '</p>' : '';
+const deliveryCell = (row: DocumentRow | undefined): string => {
+  if (!row || !asText(row.type)) return '';
+  const quantity = asText(row.quantity);
+  const unit = asText(row.unit || 'szt.');
+  const amount = quantity && quantity !== '1' ? ' – ' + quantity + ' ' + unit : '';
+  const details = [row.position, row.notes].map(asText).filter(Boolean).join(' – ');
+  return cell(asText(row.type) + amount + (details ? ' – ' + details : ''));
+};
+
 const deliveryListsTable = (data: EnclosureDocumentData): string => {
-  const locationTable = (rows: DocumentRow[]) =>
-    table(['Element', 'Ilość', 'Lokalizacja / uwagi'],
-      rowsHtml(rows, ['type', 'quantity', 'mountingDetails']));
-  return '<table class="document-two-column"><tbody><tr>' +
-    '<td><h3>Warszawa</h3>' + locationTable(data.dostawaWarszawa) + '</td>' +
-    '<td><h3>Pyskowice</h3>' + locationTable(data.dostawaPyskowice) + '</td>' +
-    '</tr></tbody></table>';
+  const warsaw = data.dostawaWarszawa.filter((row) => asText(row.type));
+  const pyskowice = data.dostawaPyskowice.filter((row) => asText(row.type));
+  const rowCount = Math.max(warsaw.length, pyskowice.length, 1);
+  const body = Array.from({ length: rowCount }, (_, index) =>
+    '<tr><td>' + deliveryCell(warsaw[index]) + '</td><td>' + deliveryCell(pyskowice[index]) + '</td></tr>'
+  ).join('');
+  return '<table class="document-delivery-table"><thead><tr><th>Dostarcza Warszawa</th><th>Dostarczają Pyskowice</th></tr></thead><tbody>' +
+    body + '</tbody></table>';
 };
 
 const colourTable = (data: EnclosureDocumentData): string => {
@@ -67,67 +77,36 @@ const colourTable = (data: EnclosureDocumentData): string => {
   );
 };
 
-export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: Order): string => {
-  const variant = data.rozmiar && data.typObudowy && data.rozmiar.toUpperCase().startsWith(data.typObudowy.toUpperCase())
-    ? data.rozmiar
-    : [data.typObudowy, data.rozmiar].filter(Boolean).join(' ');
-  const heading = [variant, data.oznaczenieStacji, data.nazwaObiektu]
-    .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() || order.projectName || order.orderNumber;
-  return `
-    <div class="document-sheet document-layout-v3">
-      <div class="document-brandline"><span>ENCO</span><span>SP. Z O.O. · DOKUMENTACJA PRODUKCYJNA</span></div>
-      <p class="document-kicker">Zlecenie produkcyjne</p>
-      <h1>ZLECENIE OBUDOWY</h1>
-      <h2 class="document-title">${escapeHtml(heading)}</h2>
-      ${paragraph('DOT.', [heading, data.dotExtra].filter(Boolean).join(' — '))}
-      ${table(['Nr ZL', 'Termin realizacji', 'Data ZD', 'Data wystawienia'], '<tr>' +
-        [data.numerZL, datePL(data.terminRealizacji), datePL(data.dataZD), datePL(data.dataWystawienia)]
-          .map((value) => '<td>' + cell(value) + '</td>').join('') + '</tr>', 'document-order-meta')}
-      <h2>1. Typ obudowy i zakres wykonania</h2>
-      ${paragraph('Typ budowli', data.typBudowli)}
-      ${paragraph('Opis zakresu', data.opisObudowy)}
-      ${table(['Długość / głębokość', 'Szerokość', 'Wysokość', 'Konstrukcja'], '<tr>' +
-        [data.dlugosc, data.szerokosc, data.wysokosc, data.konstrukcja].map(cell).map((v) => '<td>' + v + '</td>').join('') + '</tr>')}
-      ${paragraph('Ściany', [data.scianyIlosc, data.scianyKlasa].filter(Boolean).join(' · '))}
-      ${paragraph('Dach', [data.dachTyp, data.dachKlasa].filter(Boolean).join(' · '))}
-      <h2>2. Drzwi, ślusarka i mniejsze elementy</h2>
-      <h3>Drzwi i ślusarka</h3>
-      ${table(['Element', 'Ilość', 'Położenie / opis'], rowsHtml(data.slusarka, ['type', 'quantity', 'position']))}
-      <h3>Pozostałe elementy do zamontowania</h3>
-      ${table(
-        ['Grupa', 'Element do zamontowania', 'Ilość', 'Miejsce montażu / uwagi'],
-        rowsHtml(getSmallElementRows(data), ['category', 'type', 'quantityWithUnit', 'mountingDetails']),
-      )}
-      <h2>3. Kolory i wykończenie elewacji</h2>
-      ${colourTable(data)}
-      ${paragraph('Wykończenie elewacji', data.tynk)}
-      ${paragraph('Powłoka antygraffiti', data.antygraffiti)}
-      ${paragraph('Dodatkowe opisy / wymagania wykonawcze', data.opisyDodatkowe)}
-      <h2>4. Przepusty kablowe i otwory</h2>
-      <h3>Przepusty</h3>
-      ${table(['Typ', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(data.przepusty, ['type', 'quantity', 'position']))}
-      <h3>Pozostałe otwory</h3>
-      ${table(['Typ', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(data.otwory, ['type', 'quantity', 'position']))}
-      <h2>5. Główne urządzenia i instalacje</h2>
-      ${table(['Komponent', 'Opis / konfiguracja'], [
-        ['Rozdzielnica SN', data.rozdzielnicaSN], ['Rozdzielnica NN', data.rozdzielnicaNN],
-        ['Telemechanika', data.telemechanika], ['Transformator stacyjny (TRAFO)', data.transformator],
-        ['Transformator potrzeb własnych (TPW)', data.transformatorPotrzebWlasnych],
-        ['Uziemienie', data.uziemienie], ['Instalacja oświetleniowa', data.instalacjaOswietleniowa],
-        ['Inne urządzenia', data.inneUrzadzenia],
-      ].filter((entry) => asText(entry[1])).map(([label, value]) => '<tr><td><strong>' + escapeHtml(label) + '</strong></td><td>' + cell(value) + '</td></tr>').join('') || '<tr><td colspan="2">Nie uzupełniono danych urządzeń.</td></tr>')}
-      <h2>6. Zestawienie dostaw</h2>
-      ${deliveryListsTable(data)}
-      <h2>7. Wykonanie montażu stacji</h2>
-      ${paragraph('Wykonawca', data.montazWykonawca)}
-      ${paragraph('Termin montażu', data.montazTermin)}
-      ${paragraph('Odpowiedzialny / jednostka', data.montazOdpowiedzialny)}
-      ${paragraph('Uwagi montażowe', data.montazUwagi)}
-      <h2>Uwagi końcowe</h2>
-      ${paragraph('Uwagi', data.uwagi) || '<p>—</p>'}
-      <div class="document-footer"><span>ENCO Sp. z o.o.</span><span>${escapeHtml(data.numerZL || order.orderNumber)}</span></div>
-    </div>`;
-};
+export const DEFAULT_ENCLOSURE_TEMPLATE_HTML = [
+  '<div class="document-sheet document-layout-v4">',
+  '<h1 class="document-document-heading">WYKONANIE STACJI TRANSFORMATOROWEJ {{derived.title}}</h1>',
+  '<div class="document-center-meta"><p><strong>ZD NR {{form.numerZD}} z dnia {{form.dataZD}}</strong></p><p><strong>ZL {{form.numerZL}}</strong></p></div>',
+  '<p class="document-dot"><strong>DOT. WYKONANIA STACJI TRANSFORMATOROWEJ {{derived.stationVariant}}</strong></p>',
+  '<p class="document-inline-field"><strong>TERMIN REALIZACJI:</strong> {{form.terminRealizacji}}</p>',
+  '<p class="document-section-label"><strong>ZAKRES PRAC:</strong></p>',
+  '<p class="document-subheading"><strong>TYP OBUDOWY</strong></p>',
+  '<p>1. {{form.opisObudowy}}</p>',
+  '{{derived.enclosureScope}}',
+  '{{derived.colours}}',
+  '{{derived.passages}}',
+  '<p class="document-subheading"><strong>W stacji będą zamontowane następujące urządzenia:</strong></p>',
+  '{{derived.mainEquipment}}',
+  '{{derived.deliveryLists}}',
+  '{{derived.descriptionNote}}',
+  '<p><strong>UWAGA:</strong> {{form.uwagi}}</p>',
+  '{{derived.mountingSection}}',
+  '<p class="document-closing-location">{{form.montazOdpowiedzialny}}</p>',
+  '</div>',
+].join('\\n');
+
+export const buildEnclosureDocumentHtml = (data: EnclosureDocumentData, order: Order): string =>
+  renderVersionedEnclosureTemplate({
+    key: 'zlecenie-obudowy',
+    title: 'Domyślny wzór zlecenia obudowy',
+    version: CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION,
+    contentHtml: DEFAULT_ENCLOSURE_TEMPLATE_HTML,
+    fields: [],
+  }, data, order);
 
 export interface VersionedDocumentTemplate {
   key: string;
@@ -141,7 +120,7 @@ export interface VersionedDocumentTemplate {
   rules?: unknown[];
 }
 
-export const CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION = 3;
+export const CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION = 4;
 
 /**
  * Only templates carrying the current layout marker can drive the live document.
@@ -151,7 +130,7 @@ export const CURRENT_ENCLOSURE_DOCUMENT_LAYOUT_VERSION = 3;
 export const isCurrentEnclosureDocumentTemplate = (
   template: VersionedDocumentTemplate | null | undefined,
 ): template is VersionedDocumentTemplate =>
-  Boolean(template?.contentHtml?.includes('document-layout-v3'));
+  Boolean(template?.contentHtml?.includes('document-layout-v4'));
 
 
 export const fetchEnclosureDocumentTemplate = async (): Promise<VersionedDocumentTemplate | null> => {
@@ -306,54 +285,120 @@ const omitEmptyTemplateBlocks = (html: string, isEmptyPath: (path: string) => bo
 
 const EMPTY_TEMPLATE_VALUE = '\uE000__ENCO_EMPTY_DOCUMENT_FIELD__\uE001';
 
+const formatScopeRow = (row: DocumentRow): string => {
+  const quantity = asText(row.quantity || '1');
+  const details = [
+    row.position,
+    row.width && row.height ? row.width + ' × ' + row.height + ' mm' : '',
+    row.wings,
+    row.openingSide ? 'otwierane ' + row.openingSide : '',
+    row.ventilationGrille ? 'krata wentylacyjna' : '',
+    row.intakeFan ? 'wentylator nawiewny' : '',
+    row.exhaustFan ? 'wentylator wyciągowy' : '',
+    row.notes,
+  ].map(asText).filter(Boolean).join(' – ');
+  return quantity + ' x ' + asText(row.type) + (details ? ' – ' + details : '');
+};
+
+const formatPassageRow = (row: DocumentRow): string => {
+  const quantity = asText(row.quantity || '1');
+  const rawType = asText(row.type);
+  const cable = asText(row.cableType);
+  const name = /przepust/i.test(rawType)
+    ? rawType
+    : 'przepust kablowy ' + (cable ? cable + ' ' : '') + 'typu ' + rawType;
+  const seals = [row.sealType, row.sealVariant].map(asText).filter(Boolean);
+  const sealText = seals.length
+    ? ' wraz z wkładami uszczelniającymi ' + [...new Set(seals)].join(' ')
+    : '';
+  const details = [
+    row.diameter ? 'fi ' + asText(row.diameter) : '',
+    row.position,
+    row.notes,
+  ].map(asText).filter(Boolean).join(' – ');
+  return quantity + ' x ' + name + sealText + (details ? ' – ' + details : '');
+};
+
+const listItems = (items: string[], className = ''): string => {
+  const visible = items.map((item) => item.trim()).filter(Boolean);
+  if (!visible.length) return '';
+  return '<ul' + (className ? ' class="' + escapeHtml(className) + '"' : '') + '>' +
+    visible.map((item) => '<li>' + cell(item) + '</li>').join('') + '</ul>';
+};
+
 const renderDerivedTemplateToken = (path: string, data: EnclosureDocumentData, order: Order): string | null => {
   const titleVariant = data.rozmiar && data.typObudowy && data.rozmiar.toUpperCase().startsWith(data.typObudowy.toUpperCase())
     ? data.rozmiar
     : [data.typObudowy, data.rozmiar].filter(Boolean).join(' ');
-  const title = [titleVariant, data.oznaczenieStacji, data.nazwaObiektu].filter(Boolean).join(' ') || order.projectName || order.orderNumber;
+  const title = [titleVariant, data.oznaczenieStacji, data.nazwaObiektu].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim() || order.projectName || order.orderNumber;
   if (path === 'derived.title') return escapeHtml(title);
+  if (path === 'derived.stationVariant') return escapeHtml(titleVariant || data.typObudowy || data.rozmiar);
   if (path === 'derived.dot') return escapeHtml([title, data.dotExtra].filter(Boolean).join(' — ') || '—');
 
   if (path === 'derived.deliveryTable' || path === 'derived.deliveryLists') {
     return deliveryListsTable(data);
   }
-  if (path === 'derived.smallElements') {
-    const rows = getSmallElementRows(data);
-    return table(
-      ['Grupa', 'Element do zamontowania', 'Ilość', 'Miejsce montażu / uwagi'],
-      rowsHtml(rows, ['category', 'type', 'quantityWithUnit', 'mountingDetails']),
-    );
+  if (path === 'derived.enclosureScope') {
+    const scopeRows = [
+      ...data.slusarka,
+      ...getSmallElementRows(data),
+      ...data.otwory,
+      ...data.przepusty.filter((row) => /hea/i.test(asText(row.type))),
+    ].filter((row) => asText(row.type));
+    const scopeLines = scopeRows.map(formatScopeRow);
+    const roof = 'Dach ' + [asText(data.dachKlasa) || 'betonowy', asText(data.dachTyp) || 'kopertowy'].join(' ');
+    if (!scopeLines.some((line) => /dach/i.test(line))) scopeLines.push(roof);
+    return listItems(scopeLines, 'document-scope-list');
   }
   if (path === 'derived.colours') {
-    return colourTable(data) +
-      paragraph('Wykończenie elewacji', data.tynk) + paragraph('Powłoka antygraffiti', data.antygraffiti) + paragraph('Dodatkowe opisy', data.opisyDodatkowe);
-  }
-  if (path === 'derived.doors') {
-    return table(['Element', 'Ilość', 'Położenie / opis'], rowsHtml(data.slusarka, ['type', 'quantity', 'position']));
+    const roofColour = [data.kolorDachu, data.kolorSlusarki, data.kolorDrzwiKraty].map(asText).find(Boolean) || '';
+    const colours = [
+      asText(data.kolorObudowy) ? 'kolor elewacji: ' + asText(data.kolorObudowy) : '',
+      roofColour ? 'kolor dachu i ślusarki: ' + roofColour : '',
+    ].filter(Boolean).join('; ');
+    const finish = asText(data.tynk) || 'Tynk akrylowy zewnętrzny o strukturze baranka';
+    const antiGraffiti = data.antygraffiti === 'Tak' ? ' + powłoka antygraffiti' : '';
+    return (colours ? '<p><strong>Kolory:</strong> ' + cell(colours) + '</p>' : '') +
+      '<p>+ ' + cell(finish) + antiGraffiti + '</p>' +
+      (asText(data.opisyDodatkowe) ? '<p>' + cell(data.opisyDodatkowe) + '</p>' : '');
   }
   if (path === 'derived.passages') {
-    return table(['Typ przepustu', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(data.przepusty, ['type', 'quantity', 'position']));
+    const cableRows = data.przepusty.filter((row) => asText(row.type) && !/hea/i.test(asText(row.type)));
+    return listItems(cableRows.map(formatPassageRow), 'document-passage-list');
+  }
+  if (path === 'derived.doors') {
+    return listItems(data.slusarka.map(formatScopeRow), 'document-scope-list');
+  }
+  if (path === 'derived.smallElements') {
+    return listItems(getSmallElementRows(data).map(formatScopeRow), 'document-scope-list');
   }
   if (path === 'derived.openings') {
-    return table(['Typ otworu', 'Ilość', 'Lokalizacja / parametry'], rowsHtml(data.otwory, ['type', 'quantity', 'position']));
+    return listItems(data.otwory.map(formatScopeRow), 'document-scope-list');
   }
   if (path === 'derived.mainEquipment') {
-    return table(['Komponent', 'Opis / konfiguracja'], [
-      ['Rozdzielnica SN', data.rozdzielnicaSN], ['Rozdzielnica NN', data.rozdzielnicaNN],
-      ['Telemechanika', data.telemechanika], ['Transformator', data.transformator],
-      ['Transformator potrzeb własnych', data.transformatorPotrzebWlasnych],
-      ['Uziemienie', data.uziemienie], ['Oświetlenie', data.instalacjaOswietleniowa],
-      ['Inne urządzenia', data.inneUrzadzenia],
-    ].filter((entry) => asText(entry[1])).map(([label, value]) => '<tr><td><strong>' + escapeHtml(label) + '</strong></td><td>' + cell(value) + '</td></tr>').join('') || '<tr><td colspan="2">Nie uzupełniono danych urządzeń.</td></tr>');
+    const entries: Array<[string, unknown]> = [
+      ['Rozdzielnica SN typu:', data.rozdzielnicaSN],
+      ['Rozdzielnica nN typu:', data.rozdzielnicaNN],
+      ['Telemechanika:', data.telemechanika],
+      ['Transformator:', data.transformator],
+      ['Transformator potrzeb własnych:', data.transformatorPotrzebWlasnych],
+      ['Wewnętrzna instalacja uziemiająca –', data.uziemienie],
+      ['Wewnętrzna instalacja oświetleniowa –', data.instalacjaOswietleniowa],
+      ['Inne urządzenia:', data.inneUrzadzenia],
+    ];
+    return listItems(entries.filter(([, value]) => asText(value)).map(([label, value]) => label + ' ' + asText(value)), 'document-equipment-list');
+  }
+  if (path === 'derived.descriptionNote') {
+    return '<p><strong>OPIS</strong> – ' + cell(asText(data.opisyDodatkowe) || 'potwierdzimy') + '</p>';
   }
   if (path === 'derived.mountingSection') {
-    const details = paragraph('Wykonawca', data.montazWykonawca) + paragraph('Termin montażu', data.montazTermin) +
-      paragraph('Odpowiedzialny / jednostka', data.montazOdpowiedzialny) + paragraph('Uwagi montażowe', data.montazUwagi);
-    return details ? '<h2>DOTYCZY WYKONANIA MONTAŻU STACJI</h2>' + details : '';
+    const executor = asText(data.montazWykonawca) || 'firma zewnętrzna';
+    const term = paragraph('Termin realizacji', data.montazTermin);
+    const notes = paragraph('Uwagi montażowe', data.montazUwagi);
+    return '<p class="document-mounting-heading"><strong>DOTYCZY WYKONANIA MONTAŻU STACJI</strong> – ' + cell(executor) + '</p>' + term + notes;
   }
   return null;
 };
-
 export const renderVersionedEnclosureTemplate = (
   template: VersionedDocumentTemplate,
   data: EnclosureDocumentData,
@@ -481,7 +526,7 @@ export const sanitizeDocumentHtml = (html: string): string => {
   ]);
   const dangerousTags = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'LINK', 'META']);
   const allowedClasses = new Set([
-    'document-sheet', 'document-layout-v3', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column', 'document-order-meta',
+    'document-sheet', 'document-layout-v3', 'document-layout-v4', 'document-brandline', 'document-kicker', 'document-title', 'document-footer', 'document-two-column', 'document-order-meta',
   ]);
   const allowedStyles = new Set([
     'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color',
